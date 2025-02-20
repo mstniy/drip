@@ -1,11 +1,10 @@
-import { Document, Timestamp, UUID } from "mongodb";
+import { ObjectId, Timestamp, UUID } from "mongodb";
 
 export type CEACursor = {
   collectionUUID: UUID;
   clusterTime: Timestamp;
-  // MongoDB includes the full shard path here for sharded collections
-  // (see https://www.mongodb.com/docs/manual/reference/change-events/insert/).
-  // We keep these to allow the persisted change stream to be sharded
-  // in a similar same way as the original collection.
-  documentKey: Document;
+  // If set to undefined: the change stream returns all change events
+  // with cluster time >= the given one.
+  // Refers to the id of the persisted change event(s) being synced.
+  id: ObjectId | undefined;
 };

@@ -1,7 +1,8 @@
-import { Timestamp } from "mongodb";
+import { ObjectId, Timestamp } from "mongodb";
 import z from "zod";
 
 const zodPCSEventCommon = z.object({
+  _id: z.custom<ObjectId>((x) => x instanceof ObjectId),
   // cluster time
   ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
   // wall clock

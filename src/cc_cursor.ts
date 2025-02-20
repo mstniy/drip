@@ -2,7 +2,7 @@ import { UUID } from "mongodb";
 
 export type CCCursor = {
   collectionUUID: UUID;
-  // Note that unlike [CEACursor::documentKey], this does NOT
-  // include the shard keys.
-  key: unknown;
+  // Must not be undefined
+  // Refers to the id of the document(s) being synced.
+  id: unknown;
 };

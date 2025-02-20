@@ -3,6 +3,7 @@ import { CSAdditionEvent, CSEvent } from "./cs_event";
 import { Rule } from "./rule";
 import z from "zod";
 import { zodPCSInsertionEvent, zodPCSUpdateEvent } from "./pcs_event";
+import { CEACursor } from "./cea_cursor";
 
 export async function* dripCEAStart(
   db: Db,
@@ -12,6 +13,43 @@ export async function* dripCEAStart(
 ): AsyncGenerator<CSEvent, void, void> {
   const coll = db.collection("manual_pcs" /* `_drip_cs_${ns}` */);
   const collectionUUID = new UUID();
+
+  const minCT = z
+    .array(z.object({ ct: z.custom<Timestamp>((x) => x instanceof Timestamp) }))
+    .parse(
+      await coll
+        .find({
+          w: { $gte: syncStart },
+        })
+        .project({ _id: 0, ct: 1 })
+        .limit(1)
+        .toArray()
+    )[0]?.ct;
+
+  console.log(minCT);
+
+  if (typeof minCT === "undefined") {
+    // No change events matching the syncStart filter
+    return;
+  }
+
+  yield* dripCEAResume(
+    db,
+    {
+      collectionUUID,
+      clusterTime: minCT,
+      id: undefined,
+    },
+    rule
+  );
+}
+
+export async function* dripCEAResume(
+  db: Db,
+  cursor: CEACursor,
+  rule: Rule
+): AsyncGenerator<CSEvent, void, void> {
+  const coll = db.collection("manual_pcs" /* `_drip_cs_${ns}` */);
 
   const maxCT = z
     .array(
@@ -39,36 +77,26 @@ export async function* dripCEAStart(
     return;
   }
 
-  const minCT = z
-    .array(z.object({ ct: z.custom<Timestamp>((x) => x instanceof Timestamp) }))
-    .parse(
-      await coll
-        .find({
-          w: { $gte: syncStart },
-        })
-        .project({ _id: 0, ct: 1 })
-        .limit(1)
-        .toArray()
-    )[0]?.ct;
-
-  console.log(minCT);
-
-  if (typeof minCT === "undefined") {
-    // No change events matching the syncStart filter
-    return;
-  }
-
   const c1 = coll
     .aggregate([
       {
         $match: {
           o: { $in: ["u", "i"] },
           ct: {
-            $gte: minCT,
             // Further change events with this same CT might still be added,
             // so ignore any having that CT for now.
             $lt: maxCT,
           },
+          $or:
+            typeof cursor.id === "undefined"
+              ? [{ ct: { $gte: cursor.clusterTime } }]
+              : [
+                  { ct: { $gt: cursor.clusterTime } },
+                  {
+                    ct: { $eq: cursor.clusterTime },
+                    _id: { $gt: cursor.id },
+                  },
+                ],
         },
       },
       ...rule.stages,
@@ -85,9 +113,9 @@ export async function* dripCEAStart(
         operationType: "addition",
         fullDocument: x.a,
         cursor: {
-          collectionUUID,
+          collectionUUID: cursor.collectionUUID,
           clusterTime: x.ct,
-          documentKey: x.k,
+          id: x._id,
         },
       } satisfies CSAdditionEvent;
     });
@@ -97,11 +125,7 @@ export async function* dripCEAStart(
   }
 }
 
-/* export async function* dripCEAResume(
-  db: Db,
-  cursor: CEACursor,
-  rule: Rule
-): AsyncGenerator<CSEvent, void, void> {}
+/* 
 
 export async function* dripCCRaw(
   db: Db,
