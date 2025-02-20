@@ -1,10 +1,5 @@
 import { Db, ObjectId, Timestamp, UUID } from "mongodb";
-import {
-  CSAdditionEvent,
-  CSUpdateEvent,
-  CSSubtractionEvent,
-  CSEvent,
-} from "./cs_event";
+import { CSUpsertEvent, CSSubtractionEvent, CSEvent } from "./cs_event";
 import { Rule } from "../rule";
 import z from "zod";
 import { CEACursor } from "./cea_cursor";
@@ -105,7 +100,7 @@ export async function* dripCEAResume(
 
   const c1 = coll
     .aggregate([
-      { $match: { o: "i" } },
+      { $match: { o: { $in: ["i", "u"] } } },
       matchRelevantEvents,
       ...rule.stages,
       {
@@ -115,7 +110,7 @@ export async function* dripCEAResume(
         },
       },
       {
-        project: {
+        $project: {
           ct: 1,
           a: 1,
         },
@@ -132,7 +127,7 @@ export async function* dripCEAResume(
     )
     .map((x) => {
       return {
-        op: "a" as const,
+        op: "u" as const,
         ...x,
       };
     });
@@ -152,7 +147,6 @@ export async function* dripCEAResume(
       {
         $project: {
           ct: 1,
-          u: 1,
         },
       },
     ])
@@ -161,46 +155,11 @@ export async function* dripCEAResume(
         .object({
           _id: z.custom<ObjectId>((x) => x instanceof ObjectId),
           ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
-          u: z.record(z.string(), z.any()),
         })
         .parse(x)
-    )
-    .map((x) => {
-      return { op: "u" as const, ...x };
-    });
+    );
 
   const c2b = coll
-    .aggregate([
-      { $match: { o: "u" } },
-      matchRelevantEvents,
-      ...rule.stages,
-      {
-        $sort: {
-          ct: 1,
-          _id: 1,
-        },
-      },
-      {
-        $project: {
-          ct: 1,
-          a: 1,
-        },
-      },
-    ])
-    .map((x) =>
-      z
-        .object({
-          _id: z.custom<ObjectId>((x) => x instanceof ObjectId),
-          ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
-          a: z.record(z.string(), z.any()),
-        })
-        .parse(x)
-    )
-    .map((x) => {
-      return { op: "a" as const, ...x };
-    });
-
-  const c2c = coll
     .aggregate([
       { $match: { o: "u" } },
       matchRelevantEvents,
@@ -212,8 +171,9 @@ export async function* dripCEAResume(
         },
       },
       {
-        project: {
+        $project: {
           ct: 1,
+          id: "$b._id",
         },
       },
     ])
@@ -222,14 +182,12 @@ export async function* dripCEAResume(
         .object({
           _id: z.custom<ObjectId>((x) => x instanceof ObjectId),
           ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
+          id: z.unknown(),
         })
         .parse(x)
     )
     .map((x) => {
-      return {
-        ...x,
-        op: "s" as const,
-      };
+      return { op: "s" as const, ...x };
     });
 
   const c3 = coll
@@ -244,8 +202,9 @@ export async function* dripCEAResume(
         },
       },
       {
-        project: {
+        $project: {
           ct: 1,
+          id: "$b._id",
         },
       },
     ])
@@ -254,6 +213,7 @@ export async function* dripCEAResume(
         .object({
           _id: z.custom<ObjectId>((x) => x instanceof ObjectId),
           ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
+          id: z.unknown(),
         })
         .parse(x)
     )
@@ -265,43 +225,25 @@ export async function* dripCEAResume(
     });
 
   for await (const cse of addCS(
-    // additions due to document insertion
+    // upserts due to document insertion or update
     c1[Symbol.asyncIterator](),
     addCS(
-      // subtractions due to document deletion
-      c3[Symbol.asyncIterator](),
-      addCS(
-        // updates
-        c2a[Symbol.asyncIterator](),
-        addCS(
-          // additions due to updates
-          subtractCS(c2b[Symbol.asyncIterator](), c2a[Symbol.asyncIterator]()),
-          // subtractions due to updates
-          subtractCS(c2c[Symbol.asyncIterator](), c2a[Symbol.asyncIterator]())
-        )
-      )
+      // subtractions due to document updates
+      subtractCS(c2b[Symbol.asyncIterator](), c2a[Symbol.asyncIterator]()),
+      // subtractions due to document deletions
+      c3[Symbol.asyncIterator]()
     )
   )) {
-    if (cse.op === "a") {
+    if (cse.op === "u") {
       yield {
-        operationType: "addition",
+        operationType: "upsert",
         fullDocument: cse.a,
         cursor: {
           collectionUUID: cursor.collectionUUID,
           clusterTime: cse.ct,
           id: cse._id,
         },
-      } satisfies CSAdditionEvent;
-    } else if (cse.op === "u") {
-      yield {
-        operationType: "update",
-        updateDescription: cse.u,
-        cursor: {
-          collectionUUID: cursor.collectionUUID,
-          clusterTime: cse.ct,
-          id: cse._id,
-        },
-      } satisfies CSUpdateEvent;
+      } satisfies CSUpsertEvent;
     } else {
       yield {
         operationType: "subtraction",
@@ -310,6 +252,7 @@ export async function* dripCEAResume(
           clusterTime: cse.ct,
           id: cse._id,
         },
+        id: cse.id,
       } satisfies CSSubtractionEvent;
     }
   }
