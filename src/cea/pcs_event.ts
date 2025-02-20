@@ -28,6 +28,8 @@ export const zodPCSUpdateEvent = zodPCSEventCommon.and(
     // before document
     b: z.record(z.string(), z.any()),
     a: z.record(z.string(), z.any()),
+    // update description
+    u: z.record(z.string(), z.any()),
   })
 );
 
