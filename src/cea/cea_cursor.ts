@@ -1,7 +1,7 @@
-import { ObjectId, Timestamp, UUID } from "mongodb";
+import { ObjectId, Timestamp } from "mongodb";
 
 export type CEACursor = {
-  collectionUUID: UUID;
+  collectionName: string;
   clusterTime: Timestamp;
   // If set to undefined: the change stream returns all change events
   // with cluster time >= the given one.

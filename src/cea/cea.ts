@@ -1,4 +1,4 @@
-import { Db, ObjectId, Timestamp, UUID } from "mongodb";
+import { Db, ObjectId, Timestamp } from "mongodb";
 import { CSUpsertEvent, CSSubtractionEvent, CSEvent } from "./cs_event";
 import { Rule } from "../rule";
 import z from "zod";
@@ -7,27 +7,55 @@ import { addCS, subtractCS } from "./cs_algebra";
 
 export async function* dripCEAStart(
   db: Db,
-  _ns: String,
+  collectionName: string,
   syncStart: Date,
   rule: Rule,
   ruleScopedToBefore: Rule
 ): AsyncGenerator<CSEvent, void, void> {
-  const coll = db.collection("manual_pcs" /* `_drip_cs_${ns}` */);
-  const collectionUUID = new UUID();
+  const coll = db.collection(`_drip_pcs_${collectionName}`);
 
-  const minCT = z
-    .array(z.object({ ct: z.custom<Timestamp>((x) => x instanceof Timestamp) }))
+  const minCTWall = z
+    .array(
+      z.object({
+        w: z.custom<Date>((x) => x instanceof Date),
+      })
+    )
+    .parse(
+      await coll
+        .find({})
+        .sort({ ct: 1 })
+        .project({ _id: 0, w: 1 })
+        .limit(1)
+        .toArray()
+    )[0]?.w;
+
+  if (typeof minCTWall === "undefined") {
+    // No persisted change events yet
+    return;
+  }
+
+  if (minCTWall >= syncStart) {
+    throw new SyncStartTooOldError();
+  }
+
+  const minRelevantCT = z
+    .array(
+      z.object({
+        ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
+        w: z.date(),
+      })
+    )
     .parse(
       await coll
         .find({
           w: { $gte: syncStart },
         })
-        .project({ _id: 0, ct: 1 })
+        .project({ _id: 0, ct: 1, w: 1 })
         .limit(1)
         .toArray()
-    )[0]?.ct;
+    )[0];
 
-  if (typeof minCT === "undefined") {
+  if (typeof minRelevantCT === "undefined") {
     // No change events matching the syncStart filter
     return;
   }
@@ -35,8 +63,8 @@ export async function* dripCEAStart(
   yield* dripCEAResume(
     db,
     {
-      collectionUUID,
-      clusterTime: minCT,
+      collectionName,
+      clusterTime: minRelevantCT.ct,
       id: undefined,
     },
     rule,
@@ -50,7 +78,7 @@ export async function* dripCEAResume(
   rule: Rule,
   ruleScopedToBefore: Rule // TODO: Derive this automatically
 ): AsyncGenerator<CSEvent, void, void> {
-  const coll = db.collection("manual_pcs" /* `_drip_cs_${ns}` */);
+  const coll = db.collection(`_drip_pcs_${cursor.collectionName}`);
 
   const maxCT = z
     .array(
@@ -239,7 +267,7 @@ export async function* dripCEAResume(
         operationType: "upsert",
         fullDocument: cse.a,
         cursor: {
-          collectionUUID: cursor.collectionUUID,
+          collectionName: cursor.collectionName,
           clusterTime: cse.ct,
           id: cse._id,
         },
@@ -248,7 +276,7 @@ export async function* dripCEAResume(
       yield {
         operationType: "subtraction",
         cursor: {
-          collectionUUID: cursor.collectionUUID,
+          collectionName: cursor.collectionName,
           clusterTime: cse.ct,
           id: cse._id,
         },
@@ -257,3 +285,7 @@ export async function* dripCEAResume(
     }
   }
 }
+
+export class CEACannotResumeError extends Error {}
+
+export class SyncStartTooOldError extends CEACannotResumeError {}
