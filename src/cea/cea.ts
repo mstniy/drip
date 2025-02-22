@@ -3,7 +3,16 @@ import { CSUpsertEvent, CSSubtractionEvent, CSEvent } from "./cs_event";
 import { Rule } from "../rule";
 import z from "zod";
 import { CEACursor } from "./cea_cursor";
-import { addCS, subtractCS } from "./cs_algebra";
+import { streamAdd, streamSubtract } from "./stream_algebra";
+import { PCSEventCommon } from "./pcs_event";
+import { oidLT } from "./oid_less";
+
+function pcseLT(
+  a: Pick<PCSEventCommon, "ct" | "_id">,
+  b: Pick<PCSEventCommon, "ct" | "_id">
+) {
+  return a.ct.lt(b.ct) || (a.ct.eq(b.ct) && oidLT(a._id, b._id));
+}
 
 export async function* dripCEAStart(
   db: Db,
@@ -252,15 +261,21 @@ export async function* dripCEAResume(
       };
     });
 
-  for await (const cse of addCS(
+  for await (const cse of streamAdd(
     // upserts due to document insertion or update
     c1[Symbol.asyncIterator](),
-    addCS(
+    streamAdd(
       // subtractions due to document updates
-      subtractCS(c2b[Symbol.asyncIterator](), c2a[Symbol.asyncIterator]()),
+      streamSubtract(
+        c2b[Symbol.asyncIterator](),
+        c2a[Symbol.asyncIterator](),
+        pcseLT
+      ),
       // subtractions due to document deletions
-      c3[Symbol.asyncIterator]()
-    )
+      c3[Symbol.asyncIterator](),
+      pcseLT
+    ),
+    pcseLT
   )) {
     if (cse.op === "u") {
       yield {

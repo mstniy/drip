@@ -48,6 +48,7 @@ export const zodPCSNoopEvent = zodPCSEventCommon.and(
   })
 );
 
+export type PCSEventCommon = z.infer<typeof zodPCSEventCommon>;
 export type PCSInsertionEvent = z.infer<typeof zodPCSInsertionEvent>;
 export type PCSUpdateEvent = z.infer<typeof zodPCSUpdateEvent>;
 export type PCSDeletionEvent = z.infer<typeof zodPCSDeletionEvent>;
