@@ -16,7 +16,7 @@ export async function* streamAdd<T1, T2>(
     }
   }
   if (res1.done && !res2.done) {
-    // Delegate to thethe second stream
+    // Delegate to the second stream
     yield res2.value;
     yield* s2;
   } else if (!res1.done && res2.done) {
