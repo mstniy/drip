@@ -5,9 +5,14 @@ export interface CSEventCommon {
   cursor: CEACursor;
 }
 
-export interface CSUpsertEvent extends CSEventCommon {
-  operationType: "upsert";
+export interface CSAdditionEvent extends CSEventCommon {
+  operationType: "addition";
   fullDocument: Document;
+}
+
+export interface CSUpdateEvent extends CSEventCommon {
+  operationType: "update";
+  updateDescription: Document;
 }
 
 export interface CSSubtractionEvent extends CSEventCommon {
@@ -15,4 +20,4 @@ export interface CSSubtractionEvent extends CSEventCommon {
   id: unknown;
 }
 
-export type CSEvent = CSUpsertEvent | CSSubtractionEvent;
+export type CSEvent = CSAdditionEvent | CSUpdateEvent | CSSubtractionEvent;

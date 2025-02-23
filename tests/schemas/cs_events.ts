@@ -5,10 +5,10 @@ export const zodCSEventCommon = z.object({
   cursor: zodCEACursor,
 });
 
-export const zodCSUpsertEvent = zodCSEventCommon
+export const zodCSAdditionEvent = zodCSEventCommon
   .merge(
     z.object({
-      operationType: z.literal("upsert"),
+      operationType: z.literal("addition"),
       fullDocument: z.record(z.string(), z.any()),
     })
   )

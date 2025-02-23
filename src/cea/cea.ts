@@ -1,9 +1,14 @@
 import { Db, ObjectId, Timestamp } from "mongodb";
-import { CSUpsertEvent, CSSubtractionEvent, CSEvent } from "./cs_event";
+import {
+  CSSubtractionEvent,
+  CSEvent,
+  CSUpdateEvent,
+  CSAdditionEvent,
+} from "./cs_event";
 import { Rule } from "../rule";
 import z from "zod";
 import { CEACursor } from "./cea_cursor";
-import { streamAdd, streamSubtract } from "./stream_algebra";
+import { streamAdd, streamSquashMerge } from "./stream_algebra";
 import { PCSEventCommon } from "./pcs_event";
 import { oidLT } from "./oid_less";
 import { minOID } from "./min_oid";
@@ -124,7 +129,7 @@ export async function* dripCEAResume(
 
   const c1 = coll
     .aggregate([
-      { $match: { o: { $in: ["i", "u"] } } },
+      { $match: { o: "i" } },
       matchRelevantEvents,
       ...rule.stages,
       {
@@ -151,7 +156,7 @@ export async function* dripCEAResume(
     )
     .map((x) => {
       return {
-        op: "u" as const,
+        op: "a" as const,
         ...x,
       };
     });
@@ -171,6 +176,7 @@ export async function* dripCEAResume(
       {
         $project: {
           ct: 1,
+          u: 1,
         },
       },
     ])
@@ -179,11 +185,46 @@ export async function* dripCEAResume(
         .object({
           _id: z.custom<ObjectId>((x) => x instanceof ObjectId),
           ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
+          u: z.record(z.string(), z.unknown()),
         })
         .parse(x)
-    );
+    )
+    .map((x) => {
+      return { op: "u" as const, ...x };
+    });
 
   const c2b = coll
+    .aggregate([
+      { $match: { o: "u" } },
+      matchRelevantEvents,
+      ...rule.stages,
+      {
+        $sort: {
+          ct: 1,
+          _id: 1,
+        },
+      },
+      {
+        $project: {
+          ct: 1,
+          a: 1,
+        },
+      },
+    ])
+    .map((x) =>
+      z
+        .object({
+          _id: z.custom<ObjectId>((x) => x instanceof ObjectId),
+          ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
+          a: z.record(z.string(), z.unknown()),
+        })
+        .parse(x)
+    )
+    .map((x) => {
+      return { op: "a" as const, ...x };
+    });
+
+  const c2c = coll
     .aggregate([
       { $match: { o: "u" } },
       matchRelevantEvents,
@@ -206,7 +247,7 @@ export async function* dripCEAResume(
         .object({
           _id: z.custom<ObjectId>((x) => x instanceof ObjectId),
           ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
-          id: z.unknown(),
+          id: z.string(),
         })
         .parse(x)
     )
@@ -249,13 +290,18 @@ export async function* dripCEAResume(
     });
 
   for await (const cse of streamAdd(
-    // upserts due to document insertion or update
+    // additions due to document insertions
     c1[Symbol.asyncIterator](),
     streamAdd(
-      // subtractions due to document updates
-      streamSubtract(
-        c2b[Symbol.asyncIterator](),
-        c2a[Symbol.asyncIterator](),
+      streamSquashMerge(
+        [
+          // updates
+          c2a[Symbol.asyncIterator](),
+          // additions due to document updates (when cleaned of updates)
+          c2b[Symbol.asyncIterator](),
+          // subtractions due to document updates (when cleaned of updates)
+          c2c[Symbol.asyncIterator](),
+        ],
         pcseLT
       ),
       // subtractions due to document deletions
@@ -266,15 +312,26 @@ export async function* dripCEAResume(
   )) {
     if (cse.op === "u") {
       yield {
-        operationType: "upsert",
+        operationType: "update",
+        updateDescription: cse.u,
+        cursor: {
+          collectionName: cursor.collectionName,
+          clusterTime: cse.ct,
+          id: cse._id,
+        },
+      } satisfies CSUpdateEvent;
+    } else if (cse.op === "a") {
+      yield {
+        operationType: "addition",
         fullDocument: cse.a,
         cursor: {
           collectionName: cursor.collectionName,
           clusterTime: cse.ct,
           id: cse._id,
         },
-      } satisfies CSUpsertEvent;
+      } satisfies CSAdditionEvent;
     } else {
+      cse.op satisfies "s";
       yield {
         operationType: "subtraction",
         cursor: {

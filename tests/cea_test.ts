@@ -1,25 +1,24 @@
 import { after, before, describe, it } from "node:test";
-import { Collection, Db, MongoClient, ObjectId, Timestamp } from "mongodb";
+import { Db, MongoClient, ObjectId, Timestamp } from "mongodb";
 
 import {
-  CSEvent,
+  CSAdditionEvent,
   CSSubtractionEvent,
-  CSUpsertEvent,
+  CSUpdateEvent,
   dripCEAStart,
 } from "../src/drip";
 import { strict as assert } from "assert";
 import {
   PCSDeletionEvent,
-  PCSEventCommon,
   PCSInsertionEvent,
   PCSNoopEvent,
   PCSUpdateEvent,
 } from "../src/cea/pcs_event";
 import { genToArray } from "./gen_to_array";
-import { zodCSUpsertEvent } from "./schemas/cs_events";
 import { dripCEAResume, CEACursorNotFoundError } from "../src/cea/cea";
 import { getRandomString } from "./random_string";
 import { minOID } from "../src/cea/min_oid";
+import { zodCSAdditionEvent } from "./schemas/cs_events";
 
 const TEST_DB_NAME = "drip_test";
 
@@ -80,7 +79,7 @@ describe("dripCEAStart", () => {
     );
 
     assert.equal(res_.length, 1);
-    const res = zodCSUpsertEvent.parse(res_[0]);
+    const res = zodCSAdditionEvent.parse(res_[0]);
 
     assert.deepStrictEqual(res.fullDocument, events[1].a);
     assert(res.cursor.clusterTime.equals(events[1].ct));
@@ -296,14 +295,14 @@ describe("dripCEAResume", () => {
     );
     assert.deepStrictEqual(res, [
       {
-        fullDocument: { _id: "f", a: 2 },
         cursor: {
           clusterTime: events[8].ct,
           collectionName,
           id: events[8]._id,
         },
-        operationType: "upsert",
-      } satisfies CSUpsertEvent,
+        updateDescription: {},
+        operationType: "update",
+      } satisfies CSUpdateEvent,
     ]);
   });
   it("converts the PCS to subset events", async () => {
@@ -321,7 +320,7 @@ describe("dripCEAResume", () => {
     );
 
     assert.deepStrictEqual(res, [
-      // insertion of a relevant object is an upsert
+      // insertion of a relevant object is an addition
       {
         cursor: {
           clusterTime: events[1].ct,
@@ -329,8 +328,8 @@ describe("dripCEAResume", () => {
           id: events[1]._id,
         },
         fullDocument: events[1].a,
-        operationType: "upsert",
-      } satisfies CSUpsertEvent,
+        operationType: "addition",
+      } satisfies CSAdditionEvent,
       // events[2] is omitted: irrelevant insertion
       // deletion of a relevant object is a subtraction
       {
@@ -343,16 +342,16 @@ describe("dripCEAResume", () => {
         operationType: "subtraction",
       } satisfies CSSubtractionEvent,
       // events[4] is omitted: irrelevant deletion
-      // update of a relevant object is an upsert, if it stays relevant
+      // update of a relevant object is an update, if it stays relevant
       {
         cursor: {
           clusterTime: events[5].ct,
           collectionName,
           id: events[5]._id,
         },
-        fullDocument: events[5].a,
-        operationType: "upsert",
-      } satisfies CSUpsertEvent,
+        updateDescription: {},
+        operationType: "update",
+      } satisfies CSUpdateEvent,
       // update of a relevant object is a sutraction, if it is not relevant anymore
       {
         cursor: {
@@ -363,7 +362,7 @@ describe("dripCEAResume", () => {
         id: events[6].b._id,
         operationType: "subtraction",
       } satisfies CSSubtractionEvent,
-      // update of an inrelevant object is an upsert, if it was not relevant
+      // update of an irrelevant object is an addition, if it was not relevant
       {
         cursor: {
           clusterTime: events[7].ct,
@@ -371,8 +370,8 @@ describe("dripCEAResume", () => {
           id: events[7]._id,
         },
         fullDocument: events[7].a,
-        operationType: "upsert",
-      } satisfies CSUpsertEvent,
+        operationType: "addition",
+      } satisfies CSAdditionEvent,
       // events[8] is omitted: it is an update to an irrelevant object, which is still irrelevant
       // events[9] and events[10] are omitted: they have the largest cluster time, so we ignore them
     ]);
