@@ -7,6 +7,8 @@ const zodPCSEventCommon = z.object({
   ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
   // wall clock
   w: z.date(),
+  // peristed change stream version
+  v: z.literal(1),
 });
 
 export const zodPCSInsertionEvent = zodPCSEventCommon.and(

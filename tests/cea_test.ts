@@ -46,6 +46,7 @@ describe("dripCEAStart", () => {
         _id: "a",
         a: 0,
       },
+      v: 1,
     } satisfies PCSInsertionEvent,
     {
       _id: new ObjectId(),
@@ -59,12 +60,14 @@ describe("dripCEAStart", () => {
         _id: "b",
         a: 0,
       },
+      v: 1,
     } satisfies PCSInsertionEvent,
     {
       _id: new ObjectId(),
       ct: new Timestamp({ t: 1740050684, i: 2 }),
       o: "n",
       w: new Date("2025-02-20T11:24:44.708Z"),
+      v: 1,
     } satisfies PCSNoopEvent,
   ] as const;
   before(async () => {
@@ -153,6 +156,7 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "a" },
       o: "i",
+      v: 1,
     } satisfies PCSInsertionEvent,
     {
       _id: new ObjectId(),
@@ -161,6 +165,7 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "b" },
       o: "i",
+      v: 1,
     } satisfies PCSInsertionEvent,
     {
       _id: new ObjectId(),
@@ -169,6 +174,7 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "c" },
       o: "i",
+      v: 1,
     } satisfies PCSInsertionEvent,
     {
       _id: new ObjectId(),
@@ -177,6 +183,7 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "d" },
       o: "d",
+      v: 1,
     } satisfies PCSDeletionEvent,
     {
       _id: new ObjectId(),
@@ -185,6 +192,7 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "e" },
       o: "d",
+      v: 1,
     } satisfies PCSDeletionEvent,
     {
       _id: new ObjectId(),
@@ -195,6 +203,7 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "a" },
       o: "u",
+      v: 1,
     } satisfies PCSUpdateEvent,
     {
       _id: new ObjectId(),
@@ -205,6 +214,7 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "b" },
       o: "u",
+      v: 1,
     } satisfies PCSUpdateEvent,
     {
       _id: new ObjectId(),
@@ -215,6 +225,7 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "c" },
       o: "u",
+      v: 1,
     } satisfies PCSUpdateEvent,
     {
       _id: new ObjectId(),
@@ -225,6 +236,7 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "f" },
       o: "u",
+      v: 1,
     } satisfies PCSUpdateEvent,
     {
       _id: new ObjectId(),
@@ -233,6 +245,7 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "g" },
       o: "i",
+      v: 1,
     } satisfies PCSInsertionEvent,
     {
       _id: new ObjectId(),
@@ -241,6 +254,7 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "h" },
       o: "i",
+      v: 1,
     } satisfies PCSInsertionEvent,
   ] as const;
   before(async () => {
