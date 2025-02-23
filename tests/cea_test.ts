@@ -18,7 +18,6 @@ import { genToArray } from "./gen_to_array";
 import { dripCEAResume, CEACursorNotFoundError } from "../src/cea/cea";
 import { getRandomString } from "./random_string";
 import { minOID } from "../src/cea/min_oid";
-import { zodCSAdditionEvent } from "./schemas/cs_events";
 
 const TEST_DB_NAME = "drip_test";
 
@@ -31,7 +30,7 @@ async function openTestDB() {
 }
 
 describe("dripCEAStart", () => {
-  const COLL_NAME = getRandomString();
+  const collectionName = getRandomString();
   let client: MongoClient;
   let db: Db;
   const events = [
@@ -70,27 +69,38 @@ describe("dripCEAStart", () => {
   ] as const;
   before(async () => {
     [client, db] = await openTestDB();
-    await db.collection(`_drip_pcs_${COLL_NAME}`).insertMany(events);
+    await db.collection(`_drip_pcs_${collectionName}`).insertMany(events);
   });
   after(() => client.close());
   it("ignores too old events", async () => {
-    const res_ = await genToArray(
-      dripCEAStart(db, COLL_NAME, events[1].w, { stages: [] }, { stages: [] })
+    const res = await genToArray(
+      dripCEAStart(
+        db,
+        collectionName,
+        events[1].w,
+        { stages: [] },
+        { stages: [] }
+      )
     );
 
-    assert.equal(res_.length, 1);
-    const res = zodCSAdditionEvent.parse(res_[0]);
-
-    assert.deepStrictEqual(res.fullDocument, events[1].a);
-    assert(res.cursor.clusterTime.equals(events[1].ct));
-    assert(res.cursor.id!.equals(events[1]._id));
+    assert.deepStrictEqual(res, [
+      {
+        cursor: {
+          clusterTime: events[1].ct,
+          id: events[1]._id,
+          collectionName,
+        },
+        fullDocument: events[1].a,
+        operationType: "addition",
+      } satisfies CSAdditionEvent,
+    ]);
   });
 
   it("returns no results if given time is too recent", async () => {
     const res = await genToArray(
       dripCEAStart(
         db,
-        COLL_NAME,
+        collectionName,
         new Date(events[2].w.setUTCFullYear(events[2].w.getUTCFullYear() + 1)),
         { stages: [] },
         { stages: [] }
@@ -104,7 +114,7 @@ describe("dripCEAStart", () => {
       await genToArray(
         dripCEAStart(
           db,
-          COLL_NAME,
+          collectionName,
           new Date(
             events[0].w.setUTCFullYear(events[0].w.getUTCFullYear() - 1)
           ),
