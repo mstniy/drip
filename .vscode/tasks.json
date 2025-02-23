@@ -6,7 +6,8 @@
     {
       "label": "Start local mongodb instance",
       "type": "shell",
-      "command": "npx mongodb-runner start --version 8"
+      "command": "npx mongodb-runner start --version 8 -- --port 27017",
+      "problemMatcher": []
     }
   ]
 }

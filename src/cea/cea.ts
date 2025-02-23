@@ -6,6 +6,7 @@ import { CEACursor } from "./cea_cursor";
 import { streamAdd, streamSubtract } from "./stream_algebra";
 import { PCSEventCommon } from "./pcs_event";
 import { oidLT } from "./oid_less";
+import { minOID } from "./min_oid";
 
 function pcseLT(
   a: Pick<PCSEventCommon, "ct" | "_id">,
@@ -22,30 +23,6 @@ export async function* dripCEAStart(
   ruleScopedToBefore: Rule
 ): AsyncGenerator<CSEvent, void, void> {
   const coll = db.collection(`_drip_pcs_${collectionName}`);
-
-  const minCTWall = z
-    .array(
-      z.object({
-        w: z.custom<Date>((x) => x instanceof Date),
-      })
-    )
-    .parse(
-      await coll
-        .find({})
-        .sort({ ct: 1 })
-        .project({ _id: 0, w: 1 })
-        .limit(1)
-        .toArray()
-    )[0]?.w;
-
-  if (typeof minCTWall === "undefined") {
-    // No persisted change events yet
-    return;
-  }
-
-  if (minCTWall >= syncStart) {
-    throw new SyncStartTooOldError();
-  }
 
   const minRelevantCT = z
     .array(
@@ -74,7 +51,7 @@ export async function* dripCEAStart(
     {
       collectionName,
       clusterTime: minRelevantCT.ct,
-      id: undefined,
+      id: minOID,
     },
     rule,
     ruleScopedToBefore
@@ -89,30 +66,43 @@ export async function* dripCEAResume(
 ): AsyncGenerator<CSEvent, void, void> {
   const coll = db.collection(`_drip_pcs_${cursor.collectionName}`);
 
-  const maxCT = z
+  const minCT = z
     .array(
       z.object({
-        maxCT: z.custom<Timestamp>((x) => x instanceof Timestamp),
+        ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
       })
     )
     .parse(
       await coll
-        .aggregate([
-          {
-            $group: {
-              _id: null,
-              maxCT: {
-                $max: "$ct",
-              },
-            },
-          },
-        ])
+        .find()
+        .sort({ ct: 1 })
+        .limit(1)
+        .project({ _id: 0, ct: 1 })
         .toArray()
-    )[0]?.maxCT;
+    )[0]?.ct;
 
-  if (typeof maxCT === "undefined") {
+  const maxCT = z
+    .array(
+      z.object({
+        ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
+      })
+    )
+    .parse(
+      await coll
+        .find()
+        .sort({ ct: -1 })
+        .limit(1)
+        .project({ _id: 0, ct: 1 })
+        .toArray()
+    )[0]?.ct;
+
+  if (typeof minCT === "undefined" || typeof maxCT === "undefined") {
     // No PCS entries yet
     return;
+  }
+
+  if (cursor.clusterTime.compare(minCT) !== 1) {
+    throw new CEACursorNotFoundError();
   }
 
   const matchRelevantEvents = {
@@ -122,16 +112,13 @@ export async function* dripCEAResume(
         // so ignore any having that CT for now.
         $lt: maxCT,
       },
-      $or:
-        typeof cursor.id === "undefined"
-          ? [{ ct: { $gte: cursor.clusterTime } }]
-          : [
-              { ct: { $gt: cursor.clusterTime } },
-              {
-                ct: { $eq: cursor.clusterTime },
-                _id: { $gt: cursor.id },
-              },
-            ],
+      $or: [
+        { ct: { $gt: cursor.clusterTime } },
+        {
+          ct: { $eq: cursor.clusterTime },
+          _id: { $gt: cursor.id },
+        },
+      ],
     },
   };
 
@@ -303,4 +290,4 @@ export async function* dripCEAResume(
 
 export class CEACannotResumeError extends Error {}
 
-export class SyncStartTooOldError extends CEACannotResumeError {}
+export class CEACursorNotFoundError extends CEACannotResumeError {}

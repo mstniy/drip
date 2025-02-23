@@ -159,7 +159,7 @@ describe("streamSquashMerge", async () => {
     const a1 = {},
       a2 = {};
     const res = await genToArray(
-      streamSquashMerge([streamFrom([a1]), streamFrom([a2])], (a, b) => false)
+      streamSquashMerge([streamFrom([a1]), streamFrom([a2])], (_a, _b) => false)
     );
     assert.equal(res.length, 1);
     assert(res[0] === a1); // and not a2
