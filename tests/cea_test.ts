@@ -18,16 +18,7 @@ import { genToArray } from "./gen_to_array";
 import { dripCEAResume, CEACursorNotFoundError } from "../src/cea/cea";
 import { getRandomString } from "./random_string";
 import { minOID } from "../src/cea/min_oid";
-
-const TEST_DB_NAME = "drip_test";
-
-async function openTestDB() {
-  const client = new MongoClient("mongodb://127.0.0.1:27017");
-  await client.connect();
-  const db = client.db(TEST_DB_NAME);
-
-  return [client, db] as const;
-}
+import { openTestDB } from "./open_test_db";
 
 describe("dripCEAStart", () => {
   const collectionName = getRandomString();
