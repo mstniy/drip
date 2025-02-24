@@ -10,20 +10,22 @@ import { Rule } from "../rule";
 
 function makeAggregation(
   db: Db,
-  nsOrCursor: string | CCCursor,
+  collNameOrCursor: string | CCCursor,
   rule: Rule,
   options?: AggregateOptions & Abortable
 ): AggregationCursor<Document> {
   const collectionName =
-    typeof nsOrCursor === "string" ? nsOrCursor : nsOrCursor.collectionName;
+    typeof collNameOrCursor === "string"
+      ? collNameOrCursor
+      : collNameOrCursor.collectionName;
 
   const c = db
     .collection(collectionName)
     .aggregate(
       [
-        ...(typeof nsOrCursor === "string"
+        ...(typeof collNameOrCursor === "string"
           ? []
-          : [{ $match: { _id: { $gt: nsOrCursor.id } } }]),
+          : [{ $match: { _id: { $gt: collNameOrCursor.id } } }]),
         ...rule.stages,
         { $sort: { _id: 1 } },
       ],
@@ -35,20 +37,20 @@ function makeAggregation(
 
 export async function* dripCC(
   db: Db,
-  nsOrCursor: string | CCCursor,
+  collNameOrCursor: string | CCCursor,
   rule: Rule
 ): AsyncGenerator<Document, void, void> {
-  const c = makeAggregation(db, nsOrCursor, rule);
+  const c = makeAggregation(db, collNameOrCursor, rule);
 
   yield* c;
 }
 
 export async function* dripCCRaw(
   db: Db,
-  nsOrCursor: string | CCCursor,
+  collNameOrCursor: string | CCCursor,
   rule: Rule
 ): AsyncGenerator<Buffer, void, void> {
-  const c = makeAggregation(db, nsOrCursor, rule, { raw: true });
+  const c = makeAggregation(db, collNameOrCursor, rule, { raw: true });
 
   for await (const buffer_ of c) {
     const unsafe = buffer_ as any as Buffer;
