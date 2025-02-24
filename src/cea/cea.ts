@@ -12,6 +12,7 @@ import { streamAdd, streamSquashMerge } from "./stream_algebra";
 import { PCSEventCommon } from "./pcs_event";
 import { oidLT } from "./oid_less";
 import { minOID } from "./min_oid";
+import { derivePCSCollName } from "./derive_pcs_coll_name";
 
 function pcseLT(
   a: Pick<PCSEventCommon, "ct" | "_id">,
@@ -27,7 +28,7 @@ export async function* dripCEAStart(
   rule: Rule,
   ruleScopedToBefore: Rule
 ): AsyncGenerator<CSEvent, void, void> {
-  const coll = db.collection(`_drip_pcs_${collectionName}`);
+  const coll = db.collection(derivePCSCollName(collectionName));
 
   const minRelevantCT = z
     .array(
@@ -40,6 +41,7 @@ export async function* dripCEAStart(
       await coll
         .find({
           w: { $gte: syncStart },
+          v: 1,
         })
         .project({ _id: 0, ct: 1, w: 1 })
         .limit(1)
@@ -69,7 +71,7 @@ export async function* dripCEAResume(
   rule: Rule,
   ruleScopedToBefore: Rule // TODO: Derive this automatically
 ): AsyncGenerator<CSEvent, void, void> {
-  const coll = db.collection(`_drip_pcs_${cursor.collectionName}`);
+  const coll = db.collection(derivePCSCollName(cursor.collectionName));
 
   const minCT = z
     .array(
@@ -79,7 +81,7 @@ export async function* dripCEAResume(
     )
     .parse(
       await coll
-        .find()
+        .find({ v: 1 })
         .sort({ ct: 1 })
         .limit(1)
         .project({ _id: 0, ct: 1 })
@@ -94,7 +96,7 @@ export async function* dripCEAResume(
     )
     .parse(
       await coll
-        .find()
+        .find({ v: 1 })
         .sort({ ct: -1 })
         .limit(1)
         .project({ _id: 0, ct: 1 })
@@ -112,6 +114,7 @@ export async function* dripCEAResume(
 
   const matchRelevantEvents = {
     $match: {
+      v: 1,
       ct: {
         // Further change events with this same CT might still be added,
         // so ignore any having that CT for now.
@@ -129,7 +132,7 @@ export async function* dripCEAResume(
 
   const c1 = coll
     .aggregate([
-      { $match: { o: "i" } },
+      { $match: { v: 1, o: "i" } },
       matchRelevantEvents,
       ...rule.stages,
       {
@@ -163,7 +166,7 @@ export async function* dripCEAResume(
 
   const c2a = coll
     .aggregate([
-      { $match: { o: "u" } },
+      { $match: { v: 1, o: "u" } },
       matchRelevantEvents,
       ...rule.stages,
       ...ruleScopedToBefore.stages,
@@ -195,7 +198,7 @@ export async function* dripCEAResume(
 
   const c2b = coll
     .aggregate([
-      { $match: { o: "u" } },
+      { $match: { v: 1, o: "u" } },
       matchRelevantEvents,
       ...rule.stages,
       {
@@ -226,7 +229,7 @@ export async function* dripCEAResume(
 
   const c2c = coll
     .aggregate([
-      { $match: { o: "u" } },
+      { $match: { v: 1, o: "u" } },
       matchRelevantEvents,
       ...ruleScopedToBefore.stages,
       {
@@ -257,7 +260,7 @@ export async function* dripCEAResume(
 
   const c3 = coll
     .aggregate([
-      { $match: { o: "d" } },
+      { $match: { v: 1, o: "d" } },
       matchRelevantEvents,
       ...ruleScopedToBefore.stages,
       {
