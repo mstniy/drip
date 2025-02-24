@@ -1,7 +1,7 @@
 {
   "name": "@drip_sync/drip",
   "version": "0.0.1",
-  "description": "Scalable, incremental end device sync for MongoDB with rule-based access control",
+  "description": "Scalable incremental sync for MongoDB with rule-based access control",
   "main": "index.js",
   "types": "dist/src/drip.d.ts",
   "scripts": {
