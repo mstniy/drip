@@ -47,7 +47,11 @@ describe("changeEventToPCSEvent", () => {
       documentKey: { _id: id, foo: "bar" },
       fullDocument: { _id: id, foo: "bar", a: 0 },
       fullDocumentBeforeChange: { _id: id, foo: "bar", a: 1 },
-      updateDescription: {},
+      updateDescription: {
+        updatedFields: {
+          a: 0,
+        },
+      },
       ns: {
         coll: "",
         db: "",
@@ -60,7 +64,11 @@ describe("changeEventToPCSEvent", () => {
       _id: res._id,
       b: cse.fullDocumentBeforeChange,
       a: cse.fullDocument,
-      u: {},
+      u: {
+        i: {
+          a: 0,
+        },
+      },
       ct: cse.clusterTime,
       k: cse.documentKey,
       o: "u",

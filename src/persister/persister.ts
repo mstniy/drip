@@ -18,8 +18,13 @@ export async function startPersister(
     // TODO: Consult the metadata table to resume from an existing resume token, if one exists and is still valid.
     // What to do if it is not valid anymore? Cannot keep writing to the PCS collection, that would be misleading.
     // Maybe throw an exception?
-    // To get field disambiguation
-    { showExpandedEvents: true }
+    {
+      // To get field disambiguation
+      showExpandedEvents: true,
+      // We also persist pre- and post-images
+      fullDocument: "required",
+      fullDocumentBeforeChange: "required",
+    }
   );
 
   for await (const ce of cs) {

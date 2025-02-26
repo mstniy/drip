@@ -6,6 +6,8 @@ import {
   PCSUpdateEvent,
 } from "../cea/pcs_event";
 import z from "zod";
+import { updateDescriptionToU as updateDescriptionToU } from "./update_description_to_u";
+import { strict as assert } from "assert";
 
 export function changeEventToPCSEvent(
   ce: ChangeStreamDocument
@@ -24,6 +26,7 @@ export function changeEventToPCSEvent(
     } satisfies PCSInsertionEvent;
     return res;
   } else if (ce.operationType === "update") {
+    assert(typeof ce.fullDocumentBeforeChange !== "undefined");
     const res = {
       _id: new ObjectId(),
       o: "u",
@@ -35,7 +38,7 @@ export function changeEventToPCSEvent(
       k: z.record(z.string(), z.any()).parse(ce.documentKey),
       b: z.record(z.string(), z.any()).parse(ce.fullDocumentBeforeChange),
       a: z.record(z.string(), z.any()).parse(ce.fullDocument),
-      u: {}, // TODO: Also persist this
+      u: updateDescriptionToU(ce.updateDescription),
     } satisfies PCSUpdateEvent;
     return res;
   } else if (ce.operationType === "delete") {
