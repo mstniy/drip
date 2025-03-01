@@ -27,7 +27,7 @@ describe("persister", () => {
     });
   });
   after(() => client.close());
-  it("persists the change stream", async () => {
+  it("works when there is no resume token", async () => {
     startPersister(db, collectionName).catch((e) =>
       // The cursor of course gets killed once the client gets closed
       // at the end of the test

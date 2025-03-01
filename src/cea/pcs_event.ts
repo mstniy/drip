@@ -5,13 +5,12 @@ const zodPCSEventCommon = z.object({
   _id: z.custom<ObjectId>((x) => x instanceof ObjectId),
   // cluster time
   ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
-  // wall clock
-  w: z.date(),
   // peristed change stream version
   v: z.literal(1),
+  o: z.string(),
 });
 
-export const zodPCSInsertionEvent = zodPCSEventCommon.and(
+export const zodPCSInsertionEvent = zodPCSEventCommon.merge(
   z.object({
     // operation type
     o: z.literal("i"),
@@ -19,10 +18,12 @@ export const zodPCSInsertionEvent = zodPCSEventCommon.and(
     k: z.record(z.string(), z.any()),
     // after document
     a: z.record(z.string(), z.any()),
+    // wall clock
+    w: z.date(),
   })
 );
 
-export const zodPCSUpdateEvent = zodPCSEventCommon.and(
+export const zodPCSUpdateEvent = zodPCSEventCommon.merge(
   z.object({
     o: z.literal("u"),
     // key document
@@ -32,19 +33,23 @@ export const zodPCSUpdateEvent = zodPCSEventCommon.and(
     a: z.record(z.string(), z.any()),
     // update description
     u: z.record(z.string(), z.any()),
+    // wall clock
+    w: z.date(),
   })
 );
 
-export const zodPCSDeletionEvent = zodPCSEventCommon.and(
+export const zodPCSDeletionEvent = zodPCSEventCommon.merge(
   z.object({
     o: z.literal("d"),
     // key document
     k: z.record(z.string(), z.any()),
     b: z.record(z.string(), z.any()),
+    // wall clock
+    w: z.date(),
   })
 );
 
-export const zodPCSNoopEvent = zodPCSEventCommon.and(
+export const zodPCSNoopEvent = zodPCSEventCommon.merge(
   z.object({
     o: z.literal("n"),
   })

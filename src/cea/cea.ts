@@ -1,4 +1,4 @@
-import { Db, ObjectId, Timestamp } from "mongodb";
+import { Db, ObjectId, ReadConcernLevel, Timestamp } from "mongodb";
 import {
   CSSubtractionEvent,
   CSEvent,
@@ -39,10 +39,13 @@ export async function* dripCEAStart(
     )
     .parse(
       await coll
-        .find({
-          w: { $gte: syncStart },
-          v: 1,
-        })
+        .find(
+          {
+            w: { $gte: syncStart },
+            v: 1,
+          },
+          { readConcern: ReadConcernLevel.majority }
+        )
         .project({ _id: 0, ct: 1, w: 1 })
         .limit(1)
         .toArray()
@@ -81,7 +84,7 @@ export async function* dripCEAResume(
     )
     .parse(
       await coll
-        .find({ v: 1 })
+        .find({ v: 1 }, { readConcern: ReadConcernLevel.majority })
         .sort({ ct: 1 })
         .limit(1)
         .project({ _id: 0, ct: 1 })
@@ -96,7 +99,7 @@ export async function* dripCEAResume(
     )
     .parse(
       await coll
-        .find({ v: 1 })
+        .find({ v: 1 }, { readConcern: ReadConcernLevel.majority })
         .sort({ ct: -1 })
         .limit(1)
         .project({ _id: 0, ct: 1 })
@@ -131,23 +134,26 @@ export async function* dripCEAResume(
   };
 
   const c1 = coll
-    .aggregate([
-      { $match: { v: 1, o: "i" } },
-      matchRelevantEvents,
-      ...rule.stages,
-      {
-        $sort: {
-          ct: 1,
-          _id: 1,
+    .aggregate(
+      [
+        { $match: { v: 1, o: "i" } },
+        matchRelevantEvents,
+        ...rule.stages,
+        {
+          $sort: {
+            ct: 1,
+            _id: 1,
+          },
         },
-      },
-      {
-        $project: {
-          ct: 1,
-          a: 1,
+        {
+          $project: {
+            ct: 1,
+            a: 1,
+          },
         },
-      },
-    ])
+      ],
+      { readConcern: ReadConcernLevel.majority }
+    )
     .map((x) =>
       z
         .object({
@@ -165,24 +171,27 @@ export async function* dripCEAResume(
     });
 
   const c2a = coll
-    .aggregate([
-      { $match: { v: 1, o: "u" } },
-      matchRelevantEvents,
-      ...rule.stages,
-      ...ruleScopedToBefore.stages,
-      {
-        $sort: {
-          ct: 1,
-          _id: 1,
+    .aggregate(
+      [
+        { $match: { v: 1, o: "u" } },
+        matchRelevantEvents,
+        ...rule.stages,
+        ...ruleScopedToBefore.stages,
+        {
+          $sort: {
+            ct: 1,
+            _id: 1,
+          },
         },
-      },
-      {
-        $project: {
-          ct: 1,
-          u: 1,
+        {
+          $project: {
+            ct: 1,
+            u: 1,
+          },
         },
-      },
-    ])
+      ],
+      { readConcern: ReadConcernLevel.majority }
+    )
     .map((x) =>
       z
         .object({
@@ -197,23 +206,26 @@ export async function* dripCEAResume(
     });
 
   const c2b = coll
-    .aggregate([
-      { $match: { v: 1, o: "u" } },
-      matchRelevantEvents,
-      ...rule.stages,
-      {
-        $sort: {
-          ct: 1,
-          _id: 1,
+    .aggregate(
+      [
+        { $match: { v: 1, o: "u" } },
+        matchRelevantEvents,
+        ...rule.stages,
+        {
+          $sort: {
+            ct: 1,
+            _id: 1,
+          },
         },
-      },
-      {
-        $project: {
-          ct: 1,
-          a: 1,
+        {
+          $project: {
+            ct: 1,
+            a: 1,
+          },
         },
-      },
-    ])
+      ],
+      { readConcern: ReadConcernLevel.majority }
+    )
     .map((x) =>
       z
         .object({
@@ -228,23 +240,26 @@ export async function* dripCEAResume(
     });
 
   const c2c = coll
-    .aggregate([
-      { $match: { v: 1, o: "u" } },
-      matchRelevantEvents,
-      ...ruleScopedToBefore.stages,
-      {
-        $sort: {
-          ct: 1,
-          _id: 1,
+    .aggregate(
+      [
+        { $match: { v: 1, o: "u" } },
+        matchRelevantEvents,
+        ...ruleScopedToBefore.stages,
+        {
+          $sort: {
+            ct: 1,
+            _id: 1,
+          },
         },
-      },
-      {
-        $project: {
-          ct: 1,
-          id: "$b._id",
+        {
+          $project: {
+            ct: 1,
+            id: "$b._id",
+          },
         },
-      },
-    ])
+      ],
+      { readConcern: ReadConcernLevel.majority }
+    )
     .map((x) =>
       z
         .object({
@@ -259,23 +274,26 @@ export async function* dripCEAResume(
     });
 
   const c3 = coll
-    .aggregate([
-      { $match: { v: 1, o: "d" } },
-      matchRelevantEvents,
-      ...ruleScopedToBefore.stages,
-      {
-        $sort: {
-          ct: 1,
-          _id: 1,
+    .aggregate(
+      [
+        { $match: { v: 1, o: "d" } },
+        matchRelevantEvents,
+        ...ruleScopedToBefore.stages,
+        {
+          $sort: {
+            ct: 1,
+            _id: 1,
+          },
         },
-      },
-      {
-        $project: {
-          ct: 1,
-          id: "$b._id",
+        {
+          $project: {
+            ct: 1,
+            id: "$b._id",
+          },
         },
-      },
-    ])
+      ],
+      { readConcern: ReadConcernLevel.majority }
+    )
     .map((x) =>
       z
         .object({

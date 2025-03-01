@@ -4,6 +4,7 @@ import {
   AggregationCursor,
   Db,
   Document,
+  ReadConcernLevel,
 } from "mongodb";
 import { CCCursor } from "./cc_cursor";
 import { Rule } from "../rule";
@@ -29,7 +30,7 @@ function makeAggregation(
         ...rule.stages,
         { $sort: { _id: 1 } },
       ],
-      options
+      { ...options, readConcern: ReadConcernLevel.majority }
     );
 
   return c;

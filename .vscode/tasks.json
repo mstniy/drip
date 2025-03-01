@@ -6,7 +6,7 @@
     {
       "label": "Start local mongodb instance",
       "type": "shell",
-      "command": "npx mongodb-runner start --version 8 -- --port 27017",
+      "command": "npx mongodb-runner start --version 8 -- --port 27017 --replSet local_rs && sh -c 'while ! mongosh --eval \\'rs.initiate()\\'; do sleep 0.5; done'",
       "problemMatcher": []
     }
   ]
