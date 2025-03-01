@@ -1,4 +1,4 @@
-import { Db, ObjectId, ReadConcernLevel, Timestamp } from "mongodb";
+import { Collection, Db, ObjectId, ReadConcernLevel, Timestamp } from "mongodb";
 import { derivePCSCollName } from "../cea/derive_pcs_coll_name";
 import { changeEventToPCSEvent } from "./change_event_to_pcs_event";
 import {
@@ -11,12 +11,15 @@ import { PCSEventCommon, PCSNoopEvent } from "../cea/pcs_event";
 import { decodeResumeToken } from "mongodb-resumetoken-decoder";
 
 export async function startPersister(
-  db: Db,
-  collectionName: string
+  watchCollection: Collection,
+  metadataDb: Db
 ): Promise<void> {
+  const collectionName = watchCollection.collectionName;
   const promiseTrain = new PromiseTrain();
-  const pcsColl = db.collection(derivePCSCollName(collectionName));
-  const metadataColl = db.collection<DripMetadata>(MetadataCollectionName);
+  const pcsColl = metadataDb.collection(derivePCSCollName(collectionName));
+  const metadataColl = metadataDb.collection<DripMetadata>(
+    MetadataCollectionName
+  );
 
   async function pushPCSEventUpdateMetadata(
     pcse: PCSEventCommon,
@@ -51,7 +54,7 @@ export async function startPersister(
       .toArray()
   )[0]?.resumeToken;
 
-  const cs = db.collection(collectionName).watch(
+  const cs = watchCollection.watch(
     [
       {
         $match: {

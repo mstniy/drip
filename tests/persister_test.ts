@@ -31,7 +31,7 @@ describe("persister", () => {
   afterEach(() => client.close());
 
   async function test() {
-    startPersister(db, collectionName).catch((e) =>
+    startPersister(db.collection(collectionName), db).catch((e) =>
       // The cursor of course gets killed once the client gets closed
       // at the end of the test
       assert(e instanceof MongoServerError && e.codeName === "CursorKilled")
@@ -163,7 +163,7 @@ describe("persister", () => {
     } satisfies DripMetadata);
 
     try {
-      await startPersister(db, collectionName);
+      await startPersister(db.collection(collectionName), db);
       throw new Error("must have thrown :(");
     } catch (e) {
       assert(
