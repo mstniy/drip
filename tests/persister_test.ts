@@ -1,5 +1,5 @@
 import { Db, MongoClient, MongoServerError, ObjectId } from "mongodb";
-import { after, before, describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import { openTestDB } from "./open_test_db";
 import { startPersister } from "../src/persister/persister";
 import { getRandomString } from "./random_string";
@@ -13,12 +13,14 @@ import {
   zodPCSUpdateEvent,
 } from "../src/cea/pcs_event";
 import { strict as assert } from "assert";
+import { DripMetadata, MetadataCollectionName } from "../src/cea/metadata";
 
 describe("persister", () => {
   let client: MongoClient;
   let db: Db;
-  const collectionName = getRandomString();
-  before(async () => {
+  let collectionName: string;
+  beforeEach(async () => {
+    collectionName = getRandomString();
     [client, db] = await openTestDB();
     await db.createCollection(collectionName);
     await db.command({
@@ -26,8 +28,9 @@ describe("persister", () => {
       changeStreamPreAndPostImages: { enabled: true },
     });
   });
-  after(() => client.close());
-  it("works when there is no resume token", async () => {
+  afterEach(() => client.close());
+
+  async function test() {
     startPersister(db, collectionName).catch((e) =>
       // The cursor of course gets killed once the client gets closed
       // at the end of the test
@@ -128,5 +131,46 @@ describe("persister", () => {
       k: { _id: id },
       w: e3.w,
     } satisfies PCSDeletionEvent);
+  }
+
+  it("works when there is no resume token", test);
+
+  it("works when there is a saved resume token", async () => {
+    // First we need a valid resume token
+    const wc = db.collection(collectionName).watch();
+    let completer: (_: void) => void;
+    const completerPromise = new Promise((res) => (completer = res));
+    let resumeToken: unknown;
+    wc.once("resumeTokenChanged", (rt) => {
+      resumeToken = rt;
+      completer();
+    });
+    // Or else the driver won't actually start
+    // the change stream
+    wc.once("change", () => null);
+    await completerPromise;
+    await db.collection<DripMetadata>(MetadataCollectionName).insertOne({
+      _id: collectionName,
+      resumeToken,
+    } satisfies DripMetadata);
+    await test();
+  });
+
+  it("throws when an invalid resume token is saved", async () => {
+    await db.collection<DripMetadata>(MetadataCollectionName).insertOne({
+      _id: collectionName,
+      resumeToken: "not a valid resume token :(",
+    } satisfies DripMetadata);
+
+    try {
+      await startPersister(db, collectionName);
+      throw new Error("must have thrown :(");
+    } catch (e) {
+      assert(
+        e instanceof MongoServerError &&
+          e.message ===
+            "BSON field '$changeStream.resumeAfter' is the wrong type 'string', expected type 'object'"
+      );
+    }
   });
 });

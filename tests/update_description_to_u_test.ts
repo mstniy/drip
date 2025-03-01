@@ -3,6 +3,9 @@ import { updateDescriptionToU } from "../src/persister/update_description_to_u";
 import { strict as assert } from "assert";
 
 describe("updateDescriptionToU", () => {
+  it("works for an empty update description", () => {
+    assert.deepStrictEqual(updateDescriptionToU({}), {});
+  });
   it("works", () => {
     const res = updateDescriptionToU({
       disambiguatedPaths: {
