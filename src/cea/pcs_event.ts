@@ -2,9 +2,9 @@ import { ObjectId, Timestamp } from "mongodb";
 import z from "zod";
 
 const zodPCSEventCommon = z.object({
-  _id: z.custom<ObjectId>((x) => x instanceof ObjectId),
+  _id: z.instanceof(ObjectId),
   // cluster time
-  ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
+  ct: z.instanceof(Timestamp),
   // peristed change stream version
   v: z.literal(1),
   o: z.string(),

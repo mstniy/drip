@@ -33,7 +33,7 @@ export async function* dripCEAStart(
   const minRelevantCT = z
     .array(
       z.object({
-        ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
+        ct: z.instanceof(Timestamp),
         w: z.date(),
       })
     )
@@ -79,7 +79,7 @@ export async function* dripCEAResume(
   const minCT = z
     .array(
       z.object({
-        ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
+        ct: z.instanceof(Timestamp),
       })
     )
     .parse(
@@ -94,7 +94,7 @@ export async function* dripCEAResume(
   const maxCT = z
     .array(
       z.object({
-        ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
+        ct: z.instanceof(Timestamp),
       })
     )
     .parse(
@@ -157,8 +157,8 @@ export async function* dripCEAResume(
     .map((x) =>
       z
         .object({
-          _id: z.custom<ObjectId>((x) => x instanceof ObjectId),
-          ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
+          _id: z.instanceof(ObjectId),
+          ct: z.instanceof(Timestamp),
           a: z.record(z.string(), z.any()),
         })
         .parse(x)
@@ -195,8 +195,8 @@ export async function* dripCEAResume(
     .map((x) =>
       z
         .object({
-          _id: z.custom<ObjectId>((x) => x instanceof ObjectId),
-          ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
+          _id: z.instanceof(ObjectId),
+          ct: z.instanceof(Timestamp),
           u: z.record(z.string(), z.unknown()),
         })
         .parse(x)
@@ -229,8 +229,8 @@ export async function* dripCEAResume(
     .map((x) =>
       z
         .object({
-          _id: z.custom<ObjectId>((x) => x instanceof ObjectId),
-          ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
+          _id: z.instanceof(ObjectId),
+          ct: z.instanceof(Timestamp),
           a: z.record(z.string(), z.unknown()),
         })
         .parse(x)
@@ -263,8 +263,8 @@ export async function* dripCEAResume(
     .map((x) =>
       z
         .object({
-          _id: z.custom<ObjectId>((x) => x instanceof ObjectId),
-          ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
+          _id: z.instanceof(ObjectId),
+          ct: z.instanceof(Timestamp),
           id: z.string(),
         })
         .parse(x)
@@ -297,8 +297,8 @@ export async function* dripCEAResume(
     .map((x) =>
       z
         .object({
-          _id: z.custom<ObjectId>((x) => x instanceof ObjectId),
-          ct: z.custom<Timestamp>((x) => x instanceof Timestamp),
+          _id: z.instanceof(ObjectId),
+          ct: z.instanceof(Timestamp),
           id: z.unknown(),
         })
         .parse(x)

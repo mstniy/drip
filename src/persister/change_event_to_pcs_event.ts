@@ -17,9 +17,7 @@ export function changeEventToPCSEvent(
       _id: new ObjectId(),
       o: "i",
       v: 1,
-      ct: z
-        .custom<Timestamp>((x) => x instanceof Timestamp)
-        .parse(ce.clusterTime),
+      ct: z.instanceof(Timestamp).parse(ce.clusterTime),
       w: z.date().parse((ce as any).wallTime),
       k: z.record(z.string(), z.any()).parse(ce.documentKey),
       a: z.record(z.string(), z.any()).parse(ce.fullDocument),
@@ -31,9 +29,7 @@ export function changeEventToPCSEvent(
       _id: new ObjectId(),
       o: "u",
       v: 1,
-      ct: z
-        .custom<Timestamp>((x) => x instanceof Timestamp)
-        .parse(ce.clusterTime),
+      ct: z.instanceof(Timestamp).parse(ce.clusterTime),
       w: z.date().parse((ce as any).wallTime),
       k: z.record(z.string(), z.any()).parse(ce.documentKey),
       b: z.record(z.string(), z.any()).parse(ce.fullDocumentBeforeChange),
@@ -46,9 +42,7 @@ export function changeEventToPCSEvent(
       _id: new ObjectId(),
       o: "d",
       v: 1,
-      ct: z
-        .custom<Timestamp>((x) => x instanceof Timestamp)
-        .parse(ce.clusterTime),
+      ct: z.instanceof(Timestamp).parse(ce.clusterTime),
       w: z.date().parse((ce as any).wallTime),
       k: z.record(z.string(), z.any()).parse(ce.documentKey),
       b: z.record(z.string(), z.any()).parse(ce.fullDocumentBeforeChange),
