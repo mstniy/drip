@@ -159,7 +159,7 @@ export async function* dripCEAResume(
         .object({
           _id: z.instanceof(ObjectId),
           ct: z.instanceof(Timestamp),
-          a: z.record(z.string(), z.any()),
+          a: z.record(z.string(), z.unknown()),
         })
         .parse(x)
     )

@@ -15,9 +15,9 @@ export const zodPCSInsertionEvent = zodPCSEventCommon.merge(
     // operation type
     o: z.literal("i"),
     // key document
-    k: z.record(z.string(), z.any()),
+    k: z.record(z.string(), z.unknown()),
     // after document
-    a: z.record(z.string(), z.any()),
+    a: z.record(z.string(), z.unknown()),
     // wall clock
     w: z.date(),
   })
@@ -27,12 +27,12 @@ export const zodPCSUpdateEvent = zodPCSEventCommon.merge(
   z.object({
     o: z.literal("u"),
     // key document
-    k: z.record(z.string(), z.any()),
+    k: z.record(z.string(), z.unknown()),
     // before document
-    b: z.record(z.string(), z.any()),
-    a: z.record(z.string(), z.any()),
+    b: z.record(z.string(), z.unknown()),
+    a: z.record(z.string(), z.unknown()),
     // update description
-    u: z.record(z.string(), z.any()),
+    u: z.record(z.string(), z.unknown()),
     // wall clock
     w: z.date(),
   })
@@ -42,8 +42,8 @@ export const zodPCSDeletionEvent = zodPCSEventCommon.merge(
   z.object({
     o: z.literal("d"),
     // key document
-    k: z.record(z.string(), z.any()),
-    b: z.record(z.string(), z.any()),
+    k: z.record(z.string(), z.unknown()),
+    b: z.record(z.string(), z.unknown()),
     // wall clock
     w: z.date(),
   })
