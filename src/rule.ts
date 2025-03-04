@@ -1,8 +1,10 @@
 import { PipelineStage } from "mongoose";
 
-type RulePipelineStage =
+export type RulePipelineStage =
   | PipelineStage.AddFields
-  | PipelineStage.Fill
+  // We exclude the $fill stage because it is
+  // poorly documented
+  //| PipelineStage.Fill
   | PipelineStage.Match
   | PipelineStage.Project
   | PipelineStage.Redact
