@@ -1,7 +1,7 @@
 import _ from "lodash";
 import { RulePipelineStage } from "../../rule";
 import { InvalidStage } from "./invalid_stage";
-import { scopeExpression } from "./scope_expression";
+import { isObjectExpression, scopeExpression } from "./scope_expression";
 import { PipelineStage } from "mongoose";
 import { scopeQueryClause } from "./scope_query";
 
@@ -41,7 +41,7 @@ export function scopeStage(
         [stage]: scopeStageValueKeys(stageValue, root),
       } as any;
     case "$match":
-      if (typeof stageValue !== "object" || stageValue === null) {
+      if (!isObjectExpression(stageValue)) {
         throw new InvalidStage(
           "the match filter must be an expression in an object"
         );

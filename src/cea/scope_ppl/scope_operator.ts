@@ -1,6 +1,6 @@
 import { strict as assert } from "assert";
 import { InvalidExpression } from "./invalid_expression";
-import { scopeExpression } from "./scope_expression";
+import { isObjectExpression, scopeExpression } from "./scope_expression";
 import _ from "lodash";
 import { isOperator } from "./is_operator";
 
@@ -26,14 +26,14 @@ function scopeLet(
   outerVars: Record<string, true>
 ): Record<string, unknown> {
   const letValue = e["$let"];
-  if (typeof letValue !== "object" || letValue === null) {
+  if (!isObjectExpression(letValue)) {
     throw new InvalidExpression("$let only supports an object as its argument");
   }
   const vars = "vars" in letValue ? letValue["vars"] : undefined;
   if (typeof vars === "undefined") {
     throw new InvalidExpression("Missing 'vars' parameter to $let");
   }
-  if (typeof vars !== "object" || vars === null) {
+  if (!isObjectExpression(vars)) {
     throw new InvalidExpression("invalid parameter: expected an object (vars)");
   }
   const inn = "in" in letValue ? letValue["in"] : undefined;

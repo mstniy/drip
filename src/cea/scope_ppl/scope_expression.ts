@@ -2,6 +2,7 @@ import _ from "lodash";
 import { scopeOperator } from "./scope_operator";
 import { scopePathExpression } from "./scope_path_expression";
 import { isOperator } from "./is_operator";
+import { isComposite } from "./atoms";
 
 function isPathExpression(e: unknown): e is string {
   return typeof e === "string" && e.startsWith("$");
@@ -11,8 +12,8 @@ function isArrayExpression(e: unknown): e is unknown[] {
   return Array.isArray(e);
 }
 
-function isObjectExpression(e: unknown): e is object {
-  return typeof e === "object" && e !== null;
+export function isObjectExpression(e: unknown): e is Record<string, unknown> {
+  return isComposite(e) && !Array.isArray(e);
 }
 
 export function scopeExpression(

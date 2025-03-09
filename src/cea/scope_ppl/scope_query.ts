@@ -1,12 +1,9 @@
 // The "query" here refers to the MQL.
 // See https://www.mongodb.com/docs/manual/reference/operator/query/
 
+import { isComposite } from "./atoms";
 import { InvalidExpression } from "./invalid_expression";
-import { scopeExpression } from "./scope_expression";
-
-function isObjectArray(v: unknown[]): v is Record<string, unknown>[] {
-  return !v.some((x) => typeof x !== "object" || x === null);
-}
+import { isObjectExpression, scopeExpression } from "./scope_expression";
 
 export function scopeQueryClause(
   c: Record<string, unknown>,
@@ -27,7 +24,7 @@ export function scopeQueryClause(
           if (!Array.isArray(v)) {
             throw new InvalidExpression(`${k} argument must be an array`);
           }
-          if (!isObjectArray(v)) {
+          if (v.some((vv) => !isObjectExpression(vv))) {
             throw new InvalidExpression(
               `${k} argument's entries must be objects`
             );
@@ -52,12 +49,12 @@ export function scopeQueryClause(
 // regex, uuid, timestamp, ...
 // they'll appear as objects, but must not be recursed into
 export function scopeQueryPredicate(p: unknown, root: string): unknown {
-  if (typeof p !== "object" || p === null) {
+  if (!isComposite(p) || Array.isArray(p)) {
     // shorthand notation for equality/regex match
     // can pass as-is
     return p;
   }
-  // a query selector
+  // a query selector/object equality
   // We don't really need to change them, but
   // we do need to validate them.
   const res: Record<string, unknown> = {};
@@ -95,7 +92,7 @@ export function scopeQueryPredicate(p: unknown, root: string): unknown {
           res[k] = v;
           break;
         case "$elemMatch":
-          if (typeof v !== "object" || v === null) {
+          if (!isObjectExpression(v)) {
             throw new InvalidExpression("$elemMatch needs an Object");
           }
           // must recurse

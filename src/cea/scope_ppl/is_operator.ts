@@ -1,8 +1,10 @@
+import { isComposite } from "./atoms";
 import { InvalidExpression } from "./invalid_expression";
 
 export function isOperator(e: unknown): e is Record<string, unknown> {
   if (
-    typeof e !== "object" ||
+    !isComposite(e) ||
+    Array.isArray(e) ||
     e === null ||
     !Object.keys(e).some((e) => e.startsWith("$"))
   ) {
