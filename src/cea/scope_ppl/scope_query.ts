@@ -35,7 +35,7 @@ export function scopeQueryClause(
           res[k] = v.map((c) => scopeQueryClause(c, root));
           break;
         case "$expr":
-          res[k] = scopeExpression(res[k], root, {});
+          res[k] = scopeExpression(v, root, {});
           break;
         default:
           throw new InvalidExpression(

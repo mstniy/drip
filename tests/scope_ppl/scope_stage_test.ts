@@ -64,6 +64,24 @@ describe("scopeStage", () => {
       }
     );
   });
+  describe("$match", () => {
+    it("can scope", () => {
+      assert.deepStrictEqual(scopeStage({ $match: { a: 0 } }, "b"), {
+        $match: { "b.a": 0 },
+      });
+    });
+    it("throws if value not object", () => {
+      try {
+        scopeStage({ $match: 0 }, "a");
+        throw "must have thrown :(";
+      } catch (e) {
+        assert(
+          e instanceof InvalidStage &&
+            e.message === "the match filter must be an expression in an object"
+        );
+      }
+    });
+  });
   it("rejects invalid stages", () => {
     try {
       scopeStage({ $addFields: {}, $match: {} }, "a");
