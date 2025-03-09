@@ -3,6 +3,7 @@ import { RulePipelineStage } from "../../rule";
 import { InvalidStage } from "./invalid_stage";
 import { scopeExpression } from "./scope_expression";
 import { PipelineStage } from "mongoose";
+import { scopeQueryClause } from "./scope_query";
 
 function scopeStageValueKeys(
   stageValue: Record<string, unknown>,
@@ -39,9 +40,14 @@ export function scopeStage(
       return {
         [stage]: scopeStageValueKeys(stageValue, root),
       } as any;
-    case "$match": // TODO: match is kinda more complicated, as there have a whole different syntax
-      throw "not implemented yet :(";
-    case "$unset":
+    case "$match":
+      if (typeof stageValue !== "object" || stageValue === null) {
+        throw new InvalidStage(
+          "the match filter must be an expression in an object"
+        );
+      }
+      return { $match: scopeQueryClause(stageValue, root) };
+    case "$unset": {
       const unsets = stageValue as PipelineStage.Unset["$unset"];
       return {
         $unset:
@@ -49,6 +55,7 @@ export function scopeStage(
             ? `${root}.${unsets}`
             : unsets.map((p) => `${root}.${p}`),
       };
+    }
     default:
       throw new InvalidStage(`Unrecognized pipeline stage name: '${stage}'`);
   }
