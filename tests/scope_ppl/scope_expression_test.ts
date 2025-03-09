@@ -1,0 +1,19 @@
+import { describe, it } from "node:test";
+import { scopeExpression } from "../../src/cea/scope_ppl/scope_expression";
+import { strict as assert } from "assert";
+import { InvalidExpression } from "../../src/cea/scope_ppl/invalid_expression";
+
+describe("scopeExpression", () => {
+  it("throws for ambiguous operators", () => {
+    try {
+      scopeExpression({ $eq: [0, 0], $gt: [0, 0] }, "a", {});
+      throw "must have thrown :(";
+    } catch (e) {
+      assert(
+        e instanceof InvalidExpression &&
+          e.message ===
+            "an expression specification must contain exactly one field, the name of the expression."
+      );
+    }
+  });
+});
