@@ -18,7 +18,7 @@ export function changeEventToPCSEvent(
       o: "i",
       v: 1,
       ct: z.instanceof(Timestamp).parse(ce.clusterTime),
-      w: z.date().parse((ce as any).wallTime),
+      w: z.object({ wallTime: z.date() }).parse(ce).wallTime,
       k: z.record(z.string(), z.unknown()).parse(ce.documentKey),
       a: z.record(z.string(), z.unknown()).parse(ce.fullDocument),
     } satisfies PCSInsertionEvent;
@@ -30,7 +30,7 @@ export function changeEventToPCSEvent(
       o: "u",
       v: 1,
       ct: z.instanceof(Timestamp).parse(ce.clusterTime),
-      w: z.date().parse((ce as any).wallTime),
+      w: z.object({ wallTime: z.date() }).parse(ce).wallTime,
       k: z.record(z.string(), z.unknown()).parse(ce.documentKey),
       b: z.record(z.string(), z.unknown()).parse(ce.fullDocumentBeforeChange),
       a: z.record(z.string(), z.unknown()).parse(ce.fullDocument),
@@ -43,7 +43,7 @@ export function changeEventToPCSEvent(
       o: "d",
       v: 1,
       ct: z.instanceof(Timestamp).parse(ce.clusterTime),
-      w: z.date().parse((ce as any).wallTime),
+      w: z.object({ wallTime: z.date() }).parse(ce).wallTime,
       k: z.record(z.string(), z.unknown()).parse(ce.documentKey),
       b: z.record(z.string(), z.unknown()).parse(ce.fullDocumentBeforeChange),
     } satisfies PCSDeletionEvent;

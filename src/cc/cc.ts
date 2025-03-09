@@ -54,7 +54,7 @@ export async function* dripCCRaw(
   const c = makeAggregation(db, collNameOrCursor, rule, { raw: true });
 
   for await (const buffer_ of c) {
-    const unsafe = buffer_ as any as Buffer;
+    const unsafe = buffer_ as unknown as Buffer;
     // See https://mongodb.github.io/node-mongodb-native/6.13/interfaces/AggregateOptions.html#raw
     const safe = Buffer.alloc(unsafe.byteLength);
     safe.set(unsafe, 0);

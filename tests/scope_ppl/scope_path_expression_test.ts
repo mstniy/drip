@@ -30,7 +30,7 @@ describe("scopePathExpression", () => {
   it("rejects accesses to unknown variables", () => {
     try {
       scopePathExpression("$$my_var", "x", { var1: true });
-      throw "must have thrown :(";
+      throw new Error("must have thrown :(");
     } catch (e) {
       assert(
         e instanceof InvalidExpression &&

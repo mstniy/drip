@@ -28,7 +28,7 @@ describe("scopeQueryClause", () => {
     it("throws if not array", () => {
       try {
         scopeQueryClause({ $and: 0 }, "a");
-        throw "must have thrown :(";
+        throw new Error("must have thrown :(");
       } catch (e) {
         assert(
           e instanceof InvalidExpression &&
@@ -39,7 +39,7 @@ describe("scopeQueryClause", () => {
     it("throws if array element not object", () => {
       try {
         scopeQueryClause({ $and: [0] }, "a");
-        throw "must have thrown :(";
+        throw new Error("must have thrown :(");
       } catch (e) {
         assert(
           e instanceof InvalidExpression &&
@@ -57,7 +57,7 @@ describe("scopeQueryClause", () => {
   it("throws for unknown operators", () => {
     try {
       scopeQueryClause({ $hey: 0 }, "a");
-      throw "must have thrown :(";
+      throw new Error("must have thrown :(");
     } catch (e) {
       assert(
         e instanceof InvalidExpression &&
@@ -107,7 +107,7 @@ describe("scopeQueryPredicate", () => {
     it("throws if value not an object", () => {
       try {
         scopeQueryPredicate({ $elemMatch: 0 }, "a");
-        throw "must have thrown :(";
+        throw new Error("must have thrown :(");
       } catch (e) {
         assert(
           e instanceof InvalidExpression &&
@@ -119,7 +119,7 @@ describe("scopeQueryPredicate", () => {
   it("throws for unknown operators", () => {
     try {
       scopeQueryPredicate({ $hey: 0 }, "a");
-      throw "must have thrown :(";
+      throw new Error("must have thrown :(");
     } catch (e) {
       assert(
         e instanceof InvalidExpression && e.message === "unknown operator: $hey"

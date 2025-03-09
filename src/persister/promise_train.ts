@@ -1,7 +1,7 @@
 export class PromiseTrain {
-  private _promise: Promise<any> | undefined;
+  private _promise: Promise<unknown> | undefined;
 
-  async push(f: () => Promise<any>): Promise<void> {
+  async push(f: () => Promise<unknown>): Promise<void> {
     while (this._promise) {
       await this._promise;
     }

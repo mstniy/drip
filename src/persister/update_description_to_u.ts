@@ -1,3 +1,4 @@
+import { strict as assert } from "assert";
 import { Document, UpdateDescription } from "mongodb";
 import z from "zod";
 
@@ -7,7 +8,9 @@ function switchTo(u: Document, path: string[]): Document {
     if (!(c in cur)) {
       cur[c] = {};
     }
-    cur = cur[c];
+    const res = cur[c] as unknown;
+    assert(typeof res === "object" && res !== null);
+    cur = res;
   }
   return cur;
 }
@@ -49,7 +52,7 @@ export function updateDescriptionToU(upd: UpdateDescription): Document {
     const path = getDisambiguatedPath(field, dapaths);
     switchTo(res, [...path.slice(0, -1).map((c) => `s${c}`), "i"])[
       path[path.length - 1]!
-    ] = val;
+    ] = val as unknown;
   }
 
   return res;

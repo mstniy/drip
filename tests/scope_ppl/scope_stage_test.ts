@@ -72,8 +72,8 @@ describe("scopeStage", () => {
     });
     it("throws if value not object", () => {
       try {
-        scopeStage({ $match: 0 }, "a");
-        throw "must have thrown :(";
+        scopeStage({ $match: 0 } as any, "a"); // eslint-disable-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+        throw new Error("must have thrown :(");
       } catch (e) {
         assert(
           e instanceof InvalidStage &&
@@ -85,7 +85,7 @@ describe("scopeStage", () => {
   it("rejects invalid stages", () => {
     try {
       scopeStage({ $addFields: {}, $match: {} }, "a");
-      throw "must have thrown :(";
+      throw new Error("must have thrown :(");
     } catch (e) {
       assert(
         e instanceof InvalidStage &&
@@ -95,8 +95,8 @@ describe("scopeStage", () => {
     }
 
     try {
-      scopeStage({ $lol: 0 } as any, "a");
-      throw "must have thrown :(";
+      scopeStage({ $lol: 0 } as any, "a"); // eslint-disable-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+      throw new Error("must have thrown :(");
     } catch (e) {
       assert(
         e instanceof InvalidStage &&

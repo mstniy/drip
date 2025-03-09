@@ -69,7 +69,7 @@ describe("scopeOperator", () => {
           "a",
           {}
         );
-        throw "must have thrown :(";
+        throw new Error("must have thrown :(");
       } catch (e) {
         assert(
           e instanceof InvalidExpression &&
@@ -86,7 +86,7 @@ describe("scopeOperator", () => {
           "a",
           {}
         );
-        throw "must have thrown :(";
+        throw new Error("must have thrown :(");
       } catch (e) {
         assert(
           e instanceof InvalidExpression &&
@@ -103,7 +103,7 @@ describe("scopeOperator", () => {
           "a",
           {}
         );
-        throw "must have thrown :(";
+        throw new Error("must have thrown :(");
       } catch (e) {
         assert(
           e instanceof InvalidExpression &&
@@ -120,7 +120,7 @@ describe("scopeOperator", () => {
           "a",
           {}
         );
-        throw "must have thrown :(";
+        throw new Error("must have thrown :(");
       } catch (e) {
         assert(
           e instanceof InvalidExpression &&
@@ -137,7 +137,7 @@ describe("scopeOperator", () => {
           "a",
           {}
         );
-        throw "must have thrown :(";
+        throw new Error("must have thrown :(");
       } catch (e) {
         assert(
           e instanceof InvalidExpression &&
@@ -155,7 +155,7 @@ describe("scopeOperator", () => {
   it("throws on unsupported operators", () => {
     try {
       scopeOperator({ $lol: 0 }, "a", {});
-      throw "must have thrown :(";
+      throw new Error("must have thrown :(");
     } catch (e) {
       assert(
         e instanceof InvalidExpression &&

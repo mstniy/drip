@@ -9,6 +9,7 @@ import {
 import { PromiseTrain } from "./promise_train";
 import { PCSEventCommon, PCSNoopEvent } from "../cea/pcs_event";
 import { decodeResumeToken } from "mongodb-resumetoken-decoder";
+import z from "zod";
 
 export async function startPersister(
   watchCollection: Collection,
@@ -50,7 +51,7 @@ export async function startPersister(
         { readConcern: ReadConcernLevel.majority }
       )
       .project({ _id: 0, resumeToken: 1 })
-      .map(zodDripMetadata.pick({ resumeToken: true }).parse)
+      .map((o) => zodDripMetadata.pick({ resumeToken: true }).parse(o))
       .toArray()
   )[0]?.resumeToken;
 
@@ -75,7 +76,7 @@ export async function startPersister(
 
   let lastResumeToken: unknown;
 
-  cs.on("resumeTokenChanged", async (resumeToken) => {
+  cs.on("resumeTokenChanged", (async (resumeToken) => {
     // The Mongo node driver has a flaw for change stream where
     // it calls resumeTokenChanged before actually reporting
     // the change event to the user. Thus, naively
@@ -92,8 +93,14 @@ export async function startPersister(
     // See https://github.com/mongodb/node-mongodb-native/blob/44bc5a880230a5be93afc9e2a4fa0a4586481edd/src/change_stream.ts#L746
     await Promise.resolve();
     await Promise.resolve();
-    if ((resumeToken as any)._data !== (lastResumeToken as any)?._data) {
-      const decoded = decodeResumeToken((resumeToken as any)._data);
+    const newResumeTokenData = z
+      .string()
+      .parse((resumeToken as Record<string, unknown>)["_data"]);
+    if (
+      newResumeTokenData !==
+      ((lastResumeToken as Record<string, unknown> | undefined) ?? {})["_data"]
+    ) {
+      const decoded = decodeResumeToken(newResumeTokenData);
       await pushPCSEventUpdateMetadata(
         {
           v: 1,
@@ -107,7 +114,7 @@ export async function startPersister(
         resumeToken
       );
     }
-  });
+  }) as (rt: unknown) => void);
 
   while (true) {
     const ce = await cs.next();

@@ -5,7 +5,9 @@ import { streamAdd, streamSquashMerge } from "../src/cea/stream_algebra";
 
 async function* streamFrom<T>(x: T[], cleanup?: () => void) {
   try {
-    yield* x;
+    for (const xx of x) {
+      yield await Promise.resolve(xx);
+    }
   } finally {
     if (cleanup) {
       cleanup();
@@ -64,10 +66,14 @@ describe("streamAdd", () => {
   });
 });
 
-describe("streamSquashMerge", async () => {
+describe("streamSquashMerge", () => {
   it("can have no streams", async () => {
     assert.deepStrictEqual(
-      await genToArray(streamSquashMerge([], (a, b) => a < b)),
+      await genToArray(
+        streamSquashMerge([], () => {
+          throw new Error("must not be called");
+        })
+      ),
       []
     );
   });

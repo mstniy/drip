@@ -1,6 +1,7 @@
 // The "query" here refers to the MQL.
 // See https://www.mongodb.com/docs/manual/reference/operator/query/
 
+import z from "zod";
 import { isComposite } from "./atoms";
 import { InvalidExpression } from "./invalid_expression";
 import { isObjectExpression, scopeExpression } from "./scope_expression";
@@ -20,17 +21,21 @@ export function scopeQueryClause(
       switch (k) {
         case "$and":
         case "$nor":
-        case "$or":
+        case "$or": {
           if (!Array.isArray(v)) {
             throw new InvalidExpression(`${k} argument must be an array`);
           }
-          if (v.some((vv) => !isObjectExpression(vv))) {
+          const vParsed = z
+            .array(z.record(z.string(), z.unknown()))
+            .safeParse(v);
+          if (!vParsed.success) {
             throw new InvalidExpression(
               `${k} argument's entries must be objects`
             );
           }
-          res[k] = v.map((c) => scopeQueryClause(c, root));
+          res[k] = vParsed.data.map((c) => scopeQueryClause(c, root));
           break;
+        }
         case "$expr":
           res[k] = scopeExpression(v, root, {});
           break;

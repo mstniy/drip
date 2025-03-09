@@ -7,7 +7,7 @@ describe("scopeExpression", () => {
   it("throws for ambiguous operators", () => {
     try {
       scopeExpression({ $eq: [0, 0], $gt: [0, 0] }, "a", {});
-      throw "must have thrown :(";
+      throw new Error("must have thrown :(");
     } catch (e) {
       assert(
         e instanceof InvalidExpression &&
