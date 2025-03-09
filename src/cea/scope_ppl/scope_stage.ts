@@ -60,3 +60,10 @@ export function scopeStage(
       throw new InvalidStage(`Unrecognized pipeline stage name: '${stage}'`);
   }
 }
+
+export function scopeStages(
+  s: readonly RulePipelineStage[],
+  root: string
+): RulePipelineStage[] {
+  return s.map((ss) => scopeStage(ss, root));
+}

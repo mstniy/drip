@@ -57,7 +57,6 @@ describe("dripCEAStart", () => {
       _id: new ObjectId(),
       ct: new Timestamp({ t: 1740050684, i: 2 }),
       o: "n",
-      w: new Date("2025-02-20T11:24:44.708Z"),
       v: 1,
     } satisfies PCSNoopEvent,
   ] as const;
@@ -68,13 +67,7 @@ describe("dripCEAStart", () => {
   after(() => client.close());
   it("ignores too old events", async () => {
     const res = await genToArray(
-      dripCEAStart(
-        db,
-        collectionName,
-        events[1].w,
-        { stages: [] },
-        { stages: [] }
-      )
+      dripCEAStart(db, collectionName, events[1].w, { stages: [] })
     );
 
     assert.deepStrictEqual(res, [
@@ -95,8 +88,7 @@ describe("dripCEAStart", () => {
       dripCEAStart(
         db,
         collectionName,
-        new Date(events[2].w.setUTCFullYear(events[2].w.getUTCFullYear() + 1)),
-        { stages: [] },
+        new Date(events[1].w.setUTCFullYear(events[1].w.getUTCFullYear() + 1)),
         { stages: [] }
       )
     );
@@ -112,7 +104,6 @@ describe("dripCEAStart", () => {
           new Date(
             events[0].w.setUTCFullYear(events[0].w.getUTCFullYear() - 1)
           ),
-          { stages: [] },
           { stages: [] }
         )
       );
@@ -123,13 +114,7 @@ describe("dripCEAStart", () => {
   });
   it("yields nothing if there are no persisted events", async () => {
     const res = await genToArray(
-      dripCEAStart(
-        db,
-        "no_such_collection",
-        new Date(),
-        { stages: [] },
-        { stages: [] }
-      )
+      dripCEAStart(db, "no_such_collection", new Date(), { stages: [] })
     );
     assert(res.length === 0);
   });
@@ -263,14 +248,13 @@ describe("dripCEAResume", () => {
           collectionName: "no_such_collection",
           id: minOID,
         },
-        { stages: [] },
         { stages: [] }
       )
     );
     assert.equal(res.length, 0);
   });
   it("throws if passed the smallest cluster time or smaller", async (t) => {
-    for (let [testName, ct] of [
+    for (const [testName, ct] of [
       ["smaller", new Timestamp({ t: 1740050683, i: 0 })],
       ["smallest", new Timestamp({ t: 1740050684, i: 0 })],
     ] as const) {
@@ -284,7 +268,6 @@ describe("dripCEAResume", () => {
                 collectionName,
                 id: minOID,
               },
-              { stages: [] },
               { stages: [] }
             )
           );
@@ -304,7 +287,6 @@ describe("dripCEAResume", () => {
           collectionName,
           id: events[7]._id,
         },
-        { stages: [] },
         { stages: [] }
       )
     );
@@ -329,8 +311,7 @@ describe("dripCEAResume", () => {
           collectionName,
           id: minOID,
         },
-        { stages: [{ $match: { "a.a": 0 } }] },
-        { stages: [{ $match: { "b.a": 0 } }] }
+        { stages: [{ $match: { a: 0 } }] }
       )
     );
 

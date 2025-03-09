@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import { strict as assert } from "assert";
-import { scopeStage } from "../../src/cea/scope_ppl/scope_stage";
+import { scopeStage, scopeStages } from "../../src/cea/scope_ppl/scope_stage";
 import { InvalidStage } from "../../src/cea/scope_ppl/invalid_stage";
 
 describe("scopeStage", () => {
@@ -103,5 +103,14 @@ describe("scopeStage", () => {
           e.message === "Unrecognized pipeline stage name: '$lol'"
       );
     }
+  });
+});
+
+describe("scopeStages", () => {
+  it("works", () => {
+    assert.deepStrictEqual(
+      scopeStages([{ $match: { a: 0 } }, { $project: { a: 1 } }], "c"),
+      [{ $match: { "c.a": 0 } }, { $project: { "c.a": 1 } }]
+    );
   });
 });
