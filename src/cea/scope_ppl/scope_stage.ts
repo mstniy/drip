@@ -28,18 +28,20 @@ export function scopeStage(
     );
   }
   const stage = keys[0]!;
-  const stageValue = Object.values(s)[0];
+  const stageValue = Object.values(s)[0] as string;
   switch (stage) {
     case "$redact":
     case "$replaceRoot":
     case "$replaceWith":
-      return _.mapValues(s, (v) => scopeExpression(v, root, {})) as any;
+      return _.mapValues(s, (v) =>
+        scopeExpression(v, root, {})
+      ) as RulePipelineStage;
     case "$addFields":
     case "$project":
     case "$set":
-      return {
-        [stage]: scopeStageValueKeys(stageValue, root),
-      } as any;
+      return _.mapValues(s, (v) =>
+        scopeStageValueKeys(v, root)
+      ) as RulePipelineStage;
     case "$match":
       if (!isObjectExpression(stageValue)) {
         throw new InvalidStage(
