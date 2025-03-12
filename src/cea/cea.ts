@@ -265,7 +265,7 @@ export async function* dripCEAResume(
         .object({
           _id: z.instanceof(ObjectId),
           ct: z.instanceof(Timestamp),
-          id: z.string(),
+          id: z.unknown(),
         })
         .parse(x)
     )
@@ -340,6 +340,7 @@ export async function* dripCEAResume(
           clusterTime: cse.ct,
           id: cse._id,
         },
+        id: cse._id,
       } satisfies CSUpdateEvent;
     } else if (cse.op === "a") {
       yield {

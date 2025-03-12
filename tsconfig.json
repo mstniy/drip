@@ -10,5 +10,5 @@
     "outDir": "dist",
     "rootDir": "."
   },
-  "include": ["src/**/*", "tests/**/*", "eslint.config.mjs"]
+  "include": ["src/**/*", "tests/**/*", "example/**/*.ts", "eslint.config.mjs"]
 }

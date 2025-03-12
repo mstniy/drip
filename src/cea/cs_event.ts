@@ -13,6 +13,7 @@ export interface CSAdditionEvent extends CSEventCommon {
 export interface CSUpdateEvent extends CSEventCommon {
   operationType: "update";
   updateDescription: Document;
+  id: unknown;
 }
 
 export interface CSSubtractionEvent extends CSEventCommon {
