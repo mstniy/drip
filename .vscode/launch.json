@@ -8,7 +8,7 @@
       "name": "Debug Current File (TS)",
       "type": "node",
       "request": "launch",
-      "runtimeArgs": ["ts-node", "${file}"],
+      "runtimeArgs": ["tsx", "${file}"],
       "runtimeExecutable": "npx",
       "skipFiles": ["<node_internals>/**"],
       "console": "integratedTerminal",

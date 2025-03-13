@@ -7,7 +7,6 @@ import {
   dripCEAStart,
 } from "../src/drip";
 import z from "zod";
-import { strict as assert } from "assert";
 import { collName, dbName, mongoURL } from "./constants";
 
 async function genToArray<T>(gen: AsyncGenerator<T, void, void>): Promise<T[]> {
@@ -38,8 +37,10 @@ async function* sync() {
 
   console.log("Starting collection copy...");
 
-  const subset = (await genToArray(dripCC(db, collName, rule))).map((d) =>
-    zodTodo.parse(d)
+  const subset = Object.fromEntries(
+    (await genToArray(dripCC(db, collName, rule)))
+      .map((d) => zodTodo.parse(d))
+      .map((d) => [d._id.toHexString(), d] as const)
   );
 
   let ceaCursor: CEACursor | undefined;
@@ -49,30 +50,14 @@ async function* sync() {
     switch (c.operationType) {
       case "addition": {
         const todo = zodTodo.parse(c.fullDocument);
-        const idx = subset.findIndex((t) => t._id.equals(todo._id));
-        if (idx === -1) {
-          subset.push(todo);
-        } else {
-          // Note that this might happen because
-          // eg. we have already received this
-          // document during collection copy
-          subset[idx] = zodTodo.parse(todo);
-        }
+        subset[todo._id.toHexString()] = zodTodo.parse(todo);
         break;
       }
       case "subtraction": {
-        const idx = subset.findIndex((t) =>
-          t._id.equals(z.instanceof(ObjectId).parse(c.id))
-        );
-        assert(idx !== -1);
-        subset.splice(idx, 1);
+        delete subset[z.instanceof(ObjectId).parse(c.id).toHexString()];
         break;
       }
       case "update": {
-        const idx = subset.findIndex((t) =>
-          t._id.equals(z.instanceof(ObjectId).parse(c.id))
-        );
-        assert(idx !== -1);
         //const update = c.updateDescription;
         //TODO: Apply the update
         break;
