@@ -69,7 +69,7 @@ describe("dripCEAStart", () => {
   after(() => client.close());
   it("ignores too old events", async () => {
     const res = await genToArray(
-      dripCEAStart(db, collectionName, events[1].w, { stages: [] })
+      dripCEAStart(db, collectionName, events[1].w, [])
     );
 
     assert.deepStrictEqual(res, [
@@ -91,7 +91,7 @@ describe("dripCEAStart", () => {
         db,
         collectionName,
         new Date(events[1].w.setUTCFullYear(events[1].w.getUTCFullYear() + 1)),
-        { stages: [] }
+        []
       )
     );
     assert.equal(res.length, 0);
@@ -106,7 +106,7 @@ describe("dripCEAStart", () => {
           new Date(
             events[0].w.setUTCFullYear(events[0].w.getUTCFullYear() - 1)
           ),
-          { stages: [] }
+          []
         )
       );
       assert(false, "Must have thrown");
@@ -116,7 +116,7 @@ describe("dripCEAStart", () => {
   });
   it("yields nothing if there are no persisted events", async () => {
     const res = await genToArray(
-      dripCEAStart(db, "no_such_collection", new Date(), { stages: [] })
+      dripCEAStart(db, "no_such_collection", new Date(), [])
     );
     assert(res.length === 0);
   });
@@ -257,7 +257,7 @@ describe("dripCEAResume", () => {
           collectionName: "no_such_collection",
           id: minOID,
         },
-        { stages: [] }
+        []
       )
     );
     assert.equal(res.length, 0);
@@ -277,7 +277,7 @@ describe("dripCEAResume", () => {
                 collectionName,
                 id: minOID,
               },
-              { stages: [] }
+              []
             )
           );
           assert(false, "must have thrown");
@@ -296,7 +296,7 @@ describe("dripCEAResume", () => {
           collectionName,
           id: events[7]._id,
         },
-        { stages: [] }
+        []
       )
     );
     assert.deepStrictEqual(res, [
@@ -329,7 +329,7 @@ describe("dripCEAResume", () => {
           collectionName,
           id: minOID,
         },
-        { stages: [{ $match: { a: 0 } }] }
+        [{ $match: { a: 0 } }]
       )
     );
 

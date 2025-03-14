@@ -1,5 +1,5 @@
 import _ from "lodash";
-import { RulePipelineStage } from "../../rule";
+import { DripPipelineStage } from "../../drip_pipeline";
 import { InvalidStage } from "./invalid_stage";
 import { isObjectExpression, scopeExpression } from "./scope_expression";
 import { PipelineStage } from "mongoose";
@@ -18,9 +18,9 @@ function scopeStageValueKeys(
 }
 
 export function scopeStage(
-  s: RulePipelineStage,
+  s: DripPipelineStage,
   root: string
-): RulePipelineStage {
+): DripPipelineStage {
   const keys = Object.keys(s);
   if (keys.length !== 1) {
     throw new InvalidStage(
@@ -35,13 +35,13 @@ export function scopeStage(
     case "$replaceWith":
       return _.mapValues(s, (v) =>
         scopeExpression(v, root, {})
-      ) as RulePipelineStage;
+      ) as DripPipelineStage;
     case "$addFields":
     case "$project":
     case "$set":
       return _.mapValues(s, (v) =>
         scopeStageValueKeys(v, root)
-      ) as RulePipelineStage;
+      ) as DripPipelineStage;
     case "$match":
       if (!isObjectExpression(stageValue)) {
         throw new InvalidStage(
@@ -64,8 +64,8 @@ export function scopeStage(
 }
 
 export function scopeStages(
-  s: readonly RulePipelineStage[],
+  s: readonly DripPipelineStage[],
   root: string
-): RulePipelineStage[] {
+): DripPipelineStage[] {
   return s.map((ss) => scopeStage(ss, root));
 }

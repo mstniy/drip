@@ -6,7 +6,7 @@ import {
   CSAdditionEvent,
   CSNoopEvent,
 } from "./cs_event";
-import { Rule } from "../rule";
+import { DripPipeline } from "../drip_pipeline";
 import z from "zod";
 import { CEACursor } from "./cea_cursor";
 import { streamAdd, streamSquashMerge } from "./stream_algebra";
@@ -27,7 +27,7 @@ export async function* dripCEAStart(
   db: Db,
   collectionName: string,
   syncStart: Date,
-  rule: Rule
+  pipeline: Readonly<DripPipeline>
 ): AsyncGenerator<CSEvent, void, void> {
   const coll = db.collection(derivePCSCollName(collectionName));
 
@@ -64,17 +64,17 @@ export async function* dripCEAStart(
       clusterTime: minRelevantCT.ct,
       id: minOID,
     },
-    rule
+    pipeline
   );
 }
 
 export async function* dripCEAResume(
   db: Db,
   cursor: CEACursor,
-  rule: Rule
+  pipeline: Readonly<DripPipeline>
 ): AsyncGenerator<CSEvent, void, void> {
-  const ruleStagesScopedToAfter = scopeStages(rule.stages, "a");
-  const ruleStagesScopedToBefore = scopeStages(rule.stages, "b");
+  const pipelineScopedToAfter = scopeStages(pipeline, "a");
+  const pipelineScopedToBefore = scopeStages(pipeline, "b");
   const coll = db.collection(derivePCSCollName(cursor.collectionName));
 
   const minCT = z
@@ -139,7 +139,7 @@ export async function* dripCEAResume(
       [
         { $match: { v: 1, o: "i" } },
         matchRelevantEvents,
-        ...ruleStagesScopedToAfter,
+        ...pipelineScopedToAfter,
         {
           $sort: {
             ct: 1,
@@ -176,8 +176,8 @@ export async function* dripCEAResume(
       [
         { $match: { v: 1, o: "u" } },
         matchRelevantEvents,
-        ...ruleStagesScopedToAfter,
-        ...ruleStagesScopedToBefore,
+        ...pipelineScopedToAfter,
+        ...pipelineScopedToBefore,
         {
           $sort: {
             ct: 1,
@@ -213,7 +213,7 @@ export async function* dripCEAResume(
       [
         { $match: { v: 1, o: "u" } },
         matchRelevantEvents,
-        ...ruleStagesScopedToAfter,
+        ...pipelineScopedToAfter,
         {
           $sort: {
             ct: 1,
@@ -247,7 +247,7 @@ export async function* dripCEAResume(
       [
         { $match: { v: 1, o: "u" } },
         matchRelevantEvents,
-        ...ruleStagesScopedToBefore,
+        ...pipelineScopedToBefore,
         {
           $sort: {
             ct: 1,
@@ -281,7 +281,7 @@ export async function* dripCEAResume(
       [
         { $match: { v: 1, o: "d" } },
         matchRelevantEvents,
-        ...ruleStagesScopedToBefore,
+        ...pipelineScopedToBefore,
         {
           $sort: {
             ct: 1,

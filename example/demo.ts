@@ -36,7 +36,7 @@ async function* sync() {
   // Note that we don't do persistence for this demo,
   // but a real application would likely want to do it.
 
-  const rule = { stages: [{ $match: { deleted: false } }] };
+  const pipeline = [{ $match: { deleted: false } }];
 
   // 15 mins of buffer
   const syncStart = new Date(Date.now() - 15 * 60 * 1000);
@@ -46,7 +46,7 @@ async function* sync() {
 
   console.log("Starting collection copy...");
 
-  const ccRes = await genToArray(dripCC(db, collName, rule));
+  const ccRes = await genToArray(dripCC(db, collName, pipeline));
 
   const ccEnd = ccRes[1];
 
@@ -97,8 +97,8 @@ async function* sync() {
   while (true) {
     let gotMeaningfulChange = false;
     for await (const c of typeof ceaCursor === "undefined"
-      ? dripCEAStart(db, collName, syncStart, rule)
-      : dripCEAResume(db, ceaCursor, rule)) {
+      ? dripCEAStart(db, collName, syncStart, pipeline)
+      : dripCEAResume(db, ceaCursor, pipeline)) {
       if (c.operationType !== "noop") {
         gotMeaningfulChange = true;
       }

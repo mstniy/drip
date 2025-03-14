@@ -1,6 +1,6 @@
 import { PipelineStage } from "mongoose";
 
-export type RulePipelineStage =
+export type DripPipelineStage =
   | PipelineStage.AddFields
   // We exclude the $fill stage because it is
   // poorly documented
@@ -13,6 +13,4 @@ export type RulePipelineStage =
   | PipelineStage.Set
   | PipelineStage.Unset;
 
-export interface Rule {
-  stages: readonly RulePipelineStage[];
-}
+export type DripPipeline = DripPipelineStage[];
