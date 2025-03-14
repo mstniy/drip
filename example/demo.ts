@@ -11,14 +11,19 @@ import { collName, dbName, mongoURL } from "./constants";
 import { applyUpdateDescription } from "../src/cea/update_description";
 import { strict as assert } from "assert";
 
-async function genToArray<T>(
-  gen: AsyncGenerator<T, unknown, void>
-): Promise<T[]> {
-  const res: T[] = [];
-  for await (const t of gen) {
-    res.push(t);
+async function genToArray<T, R>(
+  gen: AsyncGenerator<T, R, void>
+): Promise<[T[], R]> {
+  const arr: T[] = [];
+
+  while (true) {
+    const res = await gen.next();
+    if (!res.done) {
+      arr.push(res.value);
+    } else {
+      return [arr, res.value];
+    }
   }
-  return res;
 }
 
 const zodTodo = z.object({
@@ -41,8 +46,12 @@ async function* sync() {
 
   console.log("Starting collection copy...");
 
+  const ccRes = await genToArray(dripCC(db, collName, rule));
+
+  const ccEnd = ccRes[1];
+
   const subset = Object.fromEntries(
-    (await genToArray(dripCC(db, collName, rule)))
+    ccRes[0]
       .map((d) => zodTodo.parse(d))
       .map((d) => [d._id.toHexString(), d] as const)
   );
@@ -71,6 +80,9 @@ async function* sync() {
         );
         break;
       }
+      case "noop":
+        // Nothing to do
+        break;
       default:
         // No unhandled case
         c satisfies never;
@@ -83,14 +95,17 @@ async function* sync() {
   let yielded = false;
 
   while (true) {
-    let gotChange = false;
+    let gotMeaningfulChange = false;
     for await (const c of typeof ceaCursor === "undefined"
       ? dripCEAStart(db, collName, syncStart, rule)
       : dripCEAResume(db, ceaCursor, rule)) {
-      gotChange = true;
+      if (c.operationType !== "noop") {
+        gotMeaningfulChange = true;
+      }
       handleChange(c);
     }
-    if (gotChange || !yielded) {
+    const isConsistent = ceaCursor && ceaCursor.clusterTime.gte(ccEnd);
+    if (isConsistent && (gotMeaningfulChange || !yielded)) {
       yielded = true;
       yield subset;
     }

@@ -20,4 +20,12 @@ export interface CSSubtractionEvent extends CSEventCommon {
   id: unknown;
 }
 
-export type CSEvent = CSAdditionEvent | CSUpdateEvent | CSSubtractionEvent;
+export interface CSNoopEvent extends CSEventCommon {
+  operationType: "noop";
+}
+
+export type CSEvent =
+  | CSAdditionEvent
+  | CSUpdateEvent
+  | CSSubtractionEvent
+  | CSNoopEvent;

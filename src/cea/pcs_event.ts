@@ -8,6 +8,8 @@ const zodPCSEventCommon = z.object({
   // peristed change stream version
   v: z.literal(1),
   o: z.string(),
+  // wall clock
+  w: z.date(),
 });
 
 export const zodPCSInsertionEvent = zodPCSEventCommon.merge(
@@ -18,8 +20,6 @@ export const zodPCSInsertionEvent = zodPCSEventCommon.merge(
     k: z.record(z.string(), z.unknown()),
     // after document
     a: z.record(z.string(), z.unknown()),
-    // wall clock
-    w: z.date(),
   })
 );
 
@@ -33,8 +33,6 @@ export const zodPCSUpdateEvent = zodPCSEventCommon.merge(
     a: z.record(z.string(), z.unknown()),
     // update description
     u: z.record(z.string(), z.unknown()),
-    // wall clock
-    w: z.date(),
   })
 );
 
@@ -44,8 +42,6 @@ export const zodPCSDeletionEvent = zodPCSEventCommon.merge(
     // key document
     k: z.record(z.string(), z.unknown()),
     b: z.record(z.string(), z.unknown()),
-    // wall clock
-    w: z.date(),
   })
 );
 

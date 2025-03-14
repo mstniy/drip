@@ -110,6 +110,9 @@ export async function startPersister(
           // the two
           ct: Timestamp.fromBits(decoded.timestamp.low, decoded.timestamp.high),
           o: "n",
+          // The resume token does not have a wall clock,
+          // so our best bet is to attach ours
+          w: new Date(),
         } satisfies PCSNoopEvent,
         resumeToken
       );

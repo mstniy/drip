@@ -4,6 +4,7 @@ import {
   CSEvent,
   CSUpdateEvent,
   CSAdditionEvent,
+  CSNoopEvent,
 } from "./cs_event";
 import { Rule } from "../rule";
 import z from "zod";
@@ -312,23 +313,62 @@ export async function* dripCEAResume(
       };
     });
 
+  const c4 = coll
+    .aggregate(
+      [
+        { $match: { v: 1, o: "n" } },
+        matchRelevantEvents,
+        {
+          $sort: {
+            ct: 1,
+            _id: 1,
+          },
+        },
+        {
+          $project: {
+            ct: 1,
+          },
+        },
+      ],
+      { readConcern: ReadConcernLevel.majority }
+    )
+    .map((x) =>
+      z
+        .object({
+          _id: z.instanceof(ObjectId),
+          ct: z.instanceof(Timestamp),
+        })
+        .parse(x)
+    )
+    .map((x) => {
+      return {
+        op: "n" as const,
+        ...x,
+      };
+    });
+
   for await (const cse of streamAdd(
-    // additions due to document insertions
-    c1[Symbol.asyncIterator](),
+    // no-op events
+    c4[Symbol.asyncIterator](),
     streamAdd(
-      streamSquashMerge(
-        [
-          // updates
-          c2a[Symbol.asyncIterator](),
-          // additions due to document updates (when cleaned of updates)
-          c2b[Symbol.asyncIterator](),
-          // subtractions due to document updates (when cleaned of updates)
-          c2c[Symbol.asyncIterator](),
-        ],
+      // additions due to document insertions
+      c1[Symbol.asyncIterator](),
+      streamAdd(
+        streamSquashMerge(
+          [
+            // updates
+            c2a[Symbol.asyncIterator](),
+            // additions due to document updates (when cleaned of updates)
+            c2b[Symbol.asyncIterator](),
+            // subtractions due to document updates (when cleaned of updates)
+            c2c[Symbol.asyncIterator](),
+          ],
+          pcseLT
+        ),
+        // subtractions due to document deletions
+        c3[Symbol.asyncIterator](),
         pcseLT
       ),
-      // subtractions due to document deletions
-      c3[Symbol.asyncIterator](),
       pcseLT
     ),
     pcseLT
@@ -354,8 +394,7 @@ export async function* dripCEAResume(
           id: cse._id,
         },
       } satisfies CSAdditionEvent;
-    } else {
-      cse.op satisfies "s";
+    } else if (cse.op === "s") {
       yield {
         operationType: "subtraction",
         cursor: {
@@ -365,6 +404,16 @@ export async function* dripCEAResume(
         },
         id: cse.id,
       } satisfies CSSubtractionEvent;
+    } else {
+      cse.op satisfies "n";
+      yield {
+        operationType: "noop",
+        cursor: {
+          collectionName: cursor.collectionName,
+          clusterTime: cse.ct,
+          id: cse._id,
+        },
+      } satisfies CSNoopEvent;
     }
   }
 }

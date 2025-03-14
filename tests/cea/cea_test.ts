@@ -3,6 +3,7 @@ import { Db, MongoClient, ObjectId, Timestamp } from "mongodb";
 
 import {
   CSAdditionEvent,
+  CSNoopEvent,
   CSSubtractionEvent,
   CSUpdateEvent,
   dripCEAStart,
@@ -58,6 +59,7 @@ describe("dripCEAStart", () => {
       ct: new Timestamp({ t: 1740050684, i: 2 }),
       o: "n",
       v: 1,
+      w: new Date("2025-02-20T11:24:44.708Z"),
     } satisfies PCSNoopEvent,
   ] as const;
   before(async () => {
@@ -216,6 +218,13 @@ describe("dripCEAResume", () => {
     } satisfies PCSUpdateEvent,
     {
       _id: new ObjectId(),
+      ct: new Timestamp({ t: 1740050687, i: 1 }),
+      w: new Date(),
+      o: "n",
+      v: 1,
+    } satisfies PCSNoopEvent,
+    {
+      _id: new ObjectId(),
       a: { _id: "g", a: 0 },
       ct: new Timestamp({ t: 1740050688, i: 0 }),
       w: new Date(),
@@ -301,6 +310,14 @@ describe("dripCEAResume", () => {
         operationType: "update",
         id: events[8].b._id,
       } satisfies CSUpdateEvent,
+      {
+        cursor: {
+          clusterTime: events[9].ct,
+          collectionName,
+          id: events[9]._id,
+        },
+        operationType: "noop",
+      } satisfies CSNoopEvent,
     ]);
   });
   it("converts the PCS to subset events", async () => {
@@ -371,7 +388,15 @@ describe("dripCEAResume", () => {
         operationType: "addition",
       } satisfies CSAdditionEvent,
       // events[8] is omitted: it is an update to an irrelevant object, which is still irrelevant
-      // events[9] and events[10] are omitted: they have the largest cluster time, so we ignore them
+      {
+        cursor: {
+          clusterTime: events[9].ct,
+          collectionName,
+          id: events[9]._id,
+        },
+        operationType: "noop",
+      } satisfies CSNoopEvent,
+      // events[10] and events[11] are omitted: they have the largest cluster time, so we ignore them
     ]);
   });
 });
