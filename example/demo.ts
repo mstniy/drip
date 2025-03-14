@@ -11,7 +11,9 @@ import { collName, dbName, mongoURL } from "./constants";
 import { applyUpdateDescription } from "../src/cea/update_description";
 import { strict as assert } from "assert";
 
-async function genToArray<T>(gen: AsyncGenerator<T, void, void>): Promise<T[]> {
+async function genToArray<T>(
+  gen: AsyncGenerator<T, unknown, void>
+): Promise<T[]> {
   const res: T[] = [];
   for await (const t of gen) {
     res.push(t);
