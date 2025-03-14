@@ -1,7 +1,7 @@
 import { strict as assert } from "assert";
 import { describe, it } from "node:test";
-import { genToArray } from "./gen_to_array";
-import { streamAdd, streamSquashMerge } from "../src/cea/stream_algebra";
+import { streamAdd, streamSquashMerge } from "../../src/cea/stream_algebra";
+import { genToArray } from "../test_utils/gen_to_array";
 
 async function* streamFrom<T>(x: T[], cleanup?: () => void) {
   try {

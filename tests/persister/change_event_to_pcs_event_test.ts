@@ -1,15 +1,15 @@
 import { describe, it } from "node:test";
-import { changeEventToPCSEvent } from "../src/persister/change_event_to_pcs_event";
 import { ObjectId, Timestamp, UUID } from "mongodb";
+import { strict as assert } from "assert";
 import {
-  PCSDeletionEvent,
+  zodPCSInsertionEvent,
   PCSInsertionEvent,
+  zodPCSUpdateEvent,
   PCSUpdateEvent,
   zodPCSDeletionEvent,
-  zodPCSInsertionEvent,
-  zodPCSUpdateEvent,
-} from "../src/cea/pcs_event";
-import { strict as assert } from "assert";
+  PCSDeletionEvent,
+} from "../../src/cea/pcs_event";
+import { changeEventToPCSEvent } from "../../src/persister/change_event_to_pcs_event";
 
 describe("changeEventToPCSEvent", () => {
   it("can convert insertion events", () => {

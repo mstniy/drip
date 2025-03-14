@@ -5,7 +5,7 @@
   "main": "index.js",
   "types": "dist/src/drip.d.ts",
   "scripts": {
-    "test": "node --import tsx --test tests/*_test.ts --test tests/**/*_test.ts",
+    "test": "node --import tsx --test $(find . -name \"*_test.ts\")",
     "coverage": "nyc npm run test"
   },
   "author": "",

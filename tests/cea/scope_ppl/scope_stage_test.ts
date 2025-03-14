@@ -1,7 +1,10 @@
 import { describe, it } from "node:test";
 import { strict as assert } from "assert";
-import { scopeStage, scopeStages } from "../../src/cea/scope_ppl/scope_stage";
-import { InvalidStage } from "../../src/cea/scope_ppl/invalid_stage";
+import { InvalidStage } from "../../../src/cea/scope_ppl/invalid_stage";
+import {
+  scopeStage,
+  scopeStages,
+} from "../../../src/cea/scope_ppl/scope_stage";
 
 describe("scopeStage", () => {
   it("can scope $addFields", () => {

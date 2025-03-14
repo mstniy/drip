@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
-import { scopeExpression } from "../../src/cea/scope_ppl/scope_expression";
 import { strict as assert } from "assert";
-import { InvalidExpression } from "../../src/cea/scope_ppl/invalid_expression";
+import { InvalidExpression } from "../../../src/cea/scope_ppl/invalid_expression";
+import { scopeExpression } from "../../../src/cea/scope_ppl/scope_expression";
 
 describe("scopeExpression", () => {
   it("throws for ambiguous operators", () => {

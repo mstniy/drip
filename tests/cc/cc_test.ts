@@ -1,10 +1,10 @@
 import { after, before, describe, it } from "node:test";
-import { getRandomString } from "./random_string";
 import { BSON, Db, Document, MongoClient } from "mongodb";
-import { openTestDB } from "./open_test_db";
-import { genToArray } from "./gen_to_array";
-import { dripCC, dripCCRaw } from "../src/cc/cc";
 import { strict as assert } from "assert";
+import { dripCC, dripCCRaw } from "../../src/drip";
+import { genToArray } from "../test_utils/gen_to_array";
+import { openTestDB } from "../test_utils/open_test_db";
+import { getRandomString } from "../test_utils/random_string";
 
 describe("dripCC", () => {
   const collectionName = getRandomString();

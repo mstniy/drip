@@ -1,10 +1,10 @@
 import { strict as assert } from "assert";
 import { describe, it } from "node:test";
+import { InvalidExpression } from "../../../src/cea/scope_ppl/invalid_expression";
 import {
   scopeQueryClause,
   scopeQueryPredicate,
-} from "../../src/cea/scope_ppl/scope_query";
-import { InvalidExpression } from "../../src/cea/scope_ppl/invalid_expression";
+} from "../../../src/cea/scope_ppl/scope_query";
 
 describe("scopeQueryClause", () => {
   it("can scope field names", () => {

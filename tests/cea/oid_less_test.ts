@@ -1,7 +1,7 @@
 import { strict as assert } from "assert";
 import { describe, it } from "node:test";
-import { oidLT } from "../src/cea/oid_less";
 import { ObjectId } from "mongodb";
+import { oidLT } from "../../src/cea/oid_less";
 
 describe("oidLT", () => {
   const pairs = [

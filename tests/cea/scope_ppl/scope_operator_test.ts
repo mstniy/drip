@@ -1,7 +1,7 @@
 import { strict as assert } from "assert";
 import { describe, it } from "node:test";
-import { scopeOperator } from "../../src/cea/scope_ppl/scope_operator";
-import { InvalidExpression } from "../../src/cea/scope_ppl/invalid_expression";
+import { InvalidExpression } from "../../../src/cea/scope_ppl/invalid_expression";
+import { scopeOperator } from "../../../src/cea/scope_ppl/scope_operator";
 
 describe("scopeOperator", () => {
   it("can scope $abs", () => {

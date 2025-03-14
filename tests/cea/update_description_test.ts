@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import {
   applyUpdateDescription,
   InvalidUpdateDescription,
-} from "../src/cea/update_description";
+} from "../../src/cea/update_description";
 
 describe("applyUpdateDescription", () => {
   it("can apply field upserts", () => {

@@ -6,19 +6,19 @@ import {
   CSSubtractionEvent,
   CSUpdateEvent,
   dripCEAStart,
-} from "../src/drip";
+} from "../../src/drip";
 import { strict as assert } from "assert";
 import {
   PCSDeletionEvent,
   PCSInsertionEvent,
   PCSNoopEvent,
   PCSUpdateEvent,
-} from "../src/cea/pcs_event";
-import { genToArray } from "./gen_to_array";
-import { dripCEAResume, CEACursorNotFoundError } from "../src/cea/cea";
-import { getRandomString } from "./random_string";
-import { minOID } from "../src/cea/min_oid";
-import { openTestDB } from "./open_test_db";
+} from "../../src/cea/pcs_event";
+import { dripCEAResume, CEACursorNotFoundError } from "../../src/cea/cea";
+import { minOID } from "../../src/cea/min_oid";
+import { genToArray } from "../test_utils/gen_to_array";
+import { openTestDB } from "../test_utils/open_test_db";
+import { getRandomString } from "../test_utils/random_string";
 
 describe("dripCEAStart", () => {
   const collectionName = getRandomString();

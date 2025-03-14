@@ -1,19 +1,19 @@
 import { Db, MongoClient, MongoServerError, ObjectId } from "mongodb";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { openTestDB } from "./open_test_db";
-import { startPersister } from "../src/persister/persister";
-import { getRandomString } from "./random_string";
-import { derivePCSCollName } from "../src/cea/derive_pcs_coll_name";
+import { strict as assert } from "assert";
+import { derivePCSCollName } from "../../src/cea/derive_pcs_coll_name";
+import { DripMetadata, MetadataCollectionName } from "../../src/cea/metadata";
 import {
-  PCSDeletionEvent,
-  PCSInsertionEvent,
-  PCSUpdateEvent,
-  zodPCSDeletionEvent,
   zodPCSInsertionEvent,
   zodPCSUpdateEvent,
-} from "../src/cea/pcs_event";
-import { strict as assert } from "assert";
-import { DripMetadata, MetadataCollectionName } from "../src/cea/metadata";
+  zodPCSDeletionEvent,
+  PCSInsertionEvent,
+  PCSUpdateEvent,
+  PCSDeletionEvent,
+} from "../../src/cea/pcs_event";
+import { startPersister } from "../../src/persister/persister";
+import { openTestDB } from "../test_utils/open_test_db";
+import { getRandomString } from "../test_utils/random_string";
 
 describe("persister", () => {
   let client: MongoClient;
