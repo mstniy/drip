@@ -39,6 +39,11 @@
     "extension": [
       ".ts"
     ],
-    "all": true
+    "all": true,
+    "exclude": [
+      "example",
+      "coverage",
+      "tests"
+    ]
   }
 }
