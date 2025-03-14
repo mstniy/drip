@@ -1,4 +1,3 @@
-import { Document } from "mongodb";
 import { CEACursor } from "./cea_cursor";
 
 export interface CSEventCommon {
@@ -7,12 +6,12 @@ export interface CSEventCommon {
 
 export interface CSAdditionEvent extends CSEventCommon {
   operationType: "addition";
-  fullDocument: Document;
+  fullDocument: Record<string, unknown>;
 }
 
 export interface CSUpdateEvent extends CSEventCommon {
   operationType: "update";
-  updateDescription: Document;
+  updateDescription: Record<string, unknown>;
   id: unknown;
 }
 
