@@ -299,7 +299,7 @@ describe("dripCEAResume", () => {
         },
         updateDescription: events[8].u,
         operationType: "update",
-        id: events[8]._id,
+        id: events[8].b._id,
       } satisfies CSUpdateEvent,
     ]);
   });
@@ -348,7 +348,7 @@ describe("dripCEAResume", () => {
         },
         updateDescription: events[5].u,
         operationType: "update",
-        id: events[5]._id,
+        id: events[5].a._id,
       } satisfies CSUpdateEvent,
       // update of a relevant object is a sutraction, if it is not relevant anymore
       {

@@ -8,6 +8,8 @@ import {
 } from "../src/drip";
 import z from "zod";
 import { collName, dbName, mongoURL } from "./constants";
+import { applyUpdateDescription } from "../src/cea/update_description";
+import { strict as assert } from "assert";
 
 async function genToArray<T>(gen: AsyncGenerator<T, void, void>): Promise<T[]> {
   const res: T[] = [];
@@ -58,8 +60,13 @@ async function* sync() {
         break;
       }
       case "update": {
-        //const update = c.updateDescription;
-        //TODO: Apply the update
+        const update = c.updateDescription;
+        const id = z.instanceof(ObjectId).parse(c.id);
+        const old = subset[id.toHexString()];
+        assert(old);
+        subset[id.toHexString()] = zodTodo.parse(
+          applyUpdateDescription(old, update)
+        );
         break;
       }
       default:

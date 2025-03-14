@@ -187,6 +187,7 @@ export async function* dripCEAResume(
           $project: {
             ct: 1,
             u: 1,
+            id: "$a._id",
           },
         },
       ],
@@ -198,6 +199,7 @@ export async function* dripCEAResume(
           _id: z.instanceof(ObjectId),
           ct: z.instanceof(Timestamp),
           u: z.record(z.string(), z.unknown()),
+          id: z.unknown(),
         })
         .parse(x)
     )
@@ -340,7 +342,7 @@ export async function* dripCEAResume(
           clusterTime: cse.ct,
           id: cse._id,
         },
-        id: cse._id,
+        id: cse.id,
       } satisfies CSUpdateEvent;
     } else if (cse.op === "a") {
       yield {
