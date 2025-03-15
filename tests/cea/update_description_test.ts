@@ -6,17 +6,34 @@ import {
 } from "../../src/cea/update_description";
 
 describe("applyUpdateDescription", () => {
-  it("can apply field upserts", () => {
-    const old = Object.freeze({ b: false });
-    assert.deepStrictEqual(applyUpdateDescription(old, { i: { a: true } }), {
-      a: true,
-      b: false,
+  describe("field upserts", () => {
+    it("work", () => {
+      const old = Object.freeze({ b: false });
+      assert.deepStrictEqual(applyUpdateDescription(old, { i: { a: true } }), {
+        a: true,
+        b: false,
+      });
+    });
+    it("are idempotent", () => {
+      const old = Object.freeze({ b: false, a: true });
+      assert.deepStrictEqual(applyUpdateDescription(old, { i: { a: true } }), {
+        a: true,
+        b: false,
+      });
     });
   });
-  it("can apply field deletions", () => {
-    const old = Object.freeze({ a: true, b: false });
-    assert.deepStrictEqual(applyUpdateDescription(old, { d: { a: false } }), {
-      b: false,
+  describe("field deletions", () => {
+    it("work", () => {
+      const old = Object.freeze({ a: true, b: false });
+      assert.deepStrictEqual(applyUpdateDescription(old, { d: { a: false } }), {
+        b: false,
+      });
+    });
+    it("are idempotent", () => {
+      const old = Object.freeze({ b: false });
+      assert.deepStrictEqual(applyUpdateDescription(old, { d: { a: false } }), {
+        b: false,
+      });
     });
   });
   describe("array truncations", () => {
@@ -100,5 +117,21 @@ describe("applyUpdateDescription", () => {
           e.message === 'Unexpected key: "test"'
       );
     }
+  });
+  it("can do all at once", () => {
+    const old = Object.freeze({ a: [1, 2, 3], b: {}, c: 0 });
+    assert.deepStrictEqual(
+      applyUpdateDescription(old, {
+        d: { c: false },
+        i: { d: 1 },
+        t: { a: 2 },
+        sb: { i: { a: 0 } },
+      }),
+      {
+        a: [1, 2],
+        b: { a: 0 },
+        d: 1,
+      }
+    );
   });
 });
