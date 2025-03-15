@@ -27,19 +27,23 @@ async function genToArray<T, R>(
 }
 
 const zodTodo = z.object({
-  _id: z.instanceof(ObjectId),
-  deleted: z.boolean(),
   title: z.string(),
 });
+
+const zodTodoWithId = zodTodo.merge(
+  z.object({
+    _id: z.instanceof(ObjectId),
+  })
+);
 
 async function* sync() {
   // Note that we don't do persistence for this demo,
   // but a real application would likely want to do it.
 
-  const pipeline = [{ $match: { deleted: false } }];
+  const pipeline = [{ $match: { userId: "me" } }];
 
-  // 15 mins of buffer
-  const syncStart = new Date(Date.now() - 15 * 60 * 1000);
+  // 5 seconds of buffer
+  const syncStart = new Date(Date.now() - 5 * 1000);
 
   const client = new MongoClient(mongoURL);
   const db = client.db(dbName);
@@ -52,8 +56,8 @@ async function* sync() {
 
   const subset = Object.fromEntries(
     ccRes[0]
-      .map((d) => zodTodo.parse(d))
-      .map((d) => [d._id.toHexString(), d] as const)
+      .map((d) => zodTodoWithId.parse(d))
+      .map((d) => [d._id.toHexString(), zodTodo.parse(d)] as const)
   );
 
   let ceaCursor: CEACursor | undefined;
@@ -62,7 +66,7 @@ async function* sync() {
     ceaCursor = c.cursor;
     switch (c.operationType) {
       case "addition": {
-        const todo = zodTodo.parse(c.fullDocument);
+        const todo = zodTodoWithId.parse(c.fullDocument);
         subset[todo._id.toHexString()] = zodTodo.parse(todo);
         break;
       }

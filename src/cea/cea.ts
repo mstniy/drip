@@ -112,7 +112,7 @@ export async function* dripCEAResume(
     return;
   }
 
-  if (cursor.clusterTime.compare(minCT) !== 1) {
+  if (!cursor.clusterTime.gt(minCT)) {
     throw new CEACursorNotFoundError();
   }
 
