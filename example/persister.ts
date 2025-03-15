@@ -1,5 +1,5 @@
 import { MongoClient } from "mongodb";
-import { startPersister } from "../src/persister/persister";
+import { startPersister } from "../src";
 import { collName, dbName, mongoURL } from "./constants";
 
 async function main() {

@@ -5,10 +5,10 @@ import {
   dripCC,
   dripCEAResume,
   dripCEAStart,
-} from "../src/drip";
+  applyUpdateDescription,
+} from "../src";
 import z from "zod";
 import { collName, dbName, mongoURL } from "./constants";
-import { applyUpdateDescription } from "../src/cea/update_description";
 import { strict as assert } from "assert";
 
 async function genToArray<T, R>(

@@ -7,7 +7,7 @@ import {
   CSSubtractionEvent,
   CSUpdateEvent,
   dripCEAStart,
-} from "../../src/drip";
+} from "../../src";
 import { strict as assert } from "assert";
 import {
   PCSDeletionEvent,

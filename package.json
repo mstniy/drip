@@ -2,12 +2,24 @@
   "name": "@drip_sync/drip",
   "version": "0.0.1",
   "description": "Scalable incremental sync for MongoDB aggregation pipelines",
-  "main": "index.js",
-  "types": "dist/src/drip.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
+    "lint": "npx tsc --noEmit && npx eslint .",
     "test": "node --import tsx --test $(find . -name \"*_test.ts\")",
-    "coverage": "nyc npm run test"
+    "coverage": "nyc npm run test",
+    "publish": "npx tsc --project tsconfig.npm.json && npm publish"
   },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "mongodb",
+    "aggregation",
+    "pipeline",
+    "incremental",
+    "sync"
+  ],
   "author": "",
   "license": "ISC",
   "devDependencies": {
@@ -43,7 +55,8 @@
     "exclude": [
       "example",
       "coverage",
-      "tests"
+      "tests",
+      "dist"
     ]
   }
 }

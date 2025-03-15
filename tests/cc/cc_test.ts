@@ -1,7 +1,7 @@
 import { after, before, describe, it } from "node:test";
 import { BSON, Db, Document, MongoClient } from "mongodb";
 import { strict as assert } from "assert";
-import { dripCC, dripCCRaw } from "../../src/drip";
+import { dripCC, dripCCRaw } from "../../src";
 import { genToArray } from "../test_utils/gen_to_array";
 import { openTestDB } from "../test_utils/open_test_db";
 import { getRandomString } from "../test_utils/random_string";
