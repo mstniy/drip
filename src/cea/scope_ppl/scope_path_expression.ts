@@ -18,8 +18,6 @@ export function scopePathExpression(
       return e;
     }
     switch (varName) {
-      case "NOW":
-      case "CLUSTER_TIME":
       case "REMOVE":
       case "DESCEND":
       case "PRUNE":

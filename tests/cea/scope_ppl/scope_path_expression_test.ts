@@ -4,8 +4,11 @@ import { InvalidExpression } from "../../../src/cea/scope_ppl/invalid_expression
 import { scopePathExpression } from "../../../src/cea/scope_ppl/scope_path_expression";
 
 describe("scopePathExpression", () => {
-  it("can scope $$NOW", () => {
-    assert.deepStrictEqual(scopePathExpression("$$NOW", "a", {}), "$$NOW");
+  it("can scope $$REMOVE", () => {
+    assert.deepStrictEqual(
+      scopePathExpression("$$REMOVE", "a", {}),
+      "$$REMOVE"
+    );
   });
   it("can scope $$CURRENT", () => {
     assert.deepStrictEqual(
