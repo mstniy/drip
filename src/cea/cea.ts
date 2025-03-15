@@ -176,6 +176,9 @@ export async function* dripCEAResume(
       [
         { $match: { v: 1, o: "u" } },
         matchRelevantEvents,
+        // Take a backup before running the given stages,
+        // as they might modify the id field.
+        { $addFields: { id: "$b._id" } },
         ...pipelineScopedToAfter,
         ...pipelineScopedToBefore,
         {
@@ -188,7 +191,7 @@ export async function* dripCEAResume(
           $project: {
             ct: 1,
             u: 1,
-            id: "$a._id",
+            id: 1,
           },
         },
       ],
@@ -247,6 +250,7 @@ export async function* dripCEAResume(
       [
         { $match: { v: 1, o: "u" } },
         matchRelevantEvents,
+        { $addFields: { id: "$b._id" } },
         ...pipelineScopedToBefore,
         {
           $sort: {
@@ -257,7 +261,7 @@ export async function* dripCEAResume(
         {
           $project: {
             ct: 1,
-            id: "$b._id",
+            id: 1,
           },
         },
       ],
@@ -281,6 +285,7 @@ export async function* dripCEAResume(
       [
         { $match: { v: 1, o: "d" } },
         matchRelevantEvents,
+        { $addFields: { id: "$b._id" } },
         ...pipelineScopedToBefore,
         {
           $sort: {
@@ -291,7 +296,7 @@ export async function* dripCEAResume(
         {
           $project: {
             ct: 1,
-            id: "$b._id",
+            id: 1,
           },
         },
       ],

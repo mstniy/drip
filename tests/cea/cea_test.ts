@@ -399,4 +399,84 @@ describe("dripCEAResume", () => {
       // events[10] and events[11] are omitted: they have the largest cluster time, so we ignore them
     ]);
   });
+
+  it("works for pipelines modifying the id field", async () => {
+    const res = await genToArray(
+      dripCEAResume(
+        db,
+        {
+          clusterTime: events[1].ct,
+          collectionName,
+          id: minOID,
+        },
+        [{ $addFields: { _id: { a: 0, id: "$_id" } } }, { $match: { a: 0 } }]
+      )
+    );
+
+    assert.deepStrictEqual(res, [
+      // insertion of a relevant object is an addition
+      {
+        cursor: {
+          clusterTime: events[1].ct,
+          collectionName,
+          id: events[1]._id,
+        },
+        fullDocument: { ...events[1].a, _id: { a: 0, id: events[1].a._id } },
+        operationType: "addition",
+      } satisfies CSAdditionEvent,
+      // events[2] is omitted: irrelevant insertion
+      // deletion of a relevant object is a subtraction
+      {
+        cursor: {
+          clusterTime: events[3].ct,
+          collectionName,
+          id: events[3]._id,
+        },
+        id: events[3].b._id,
+        operationType: "subtraction",
+      } satisfies CSSubtractionEvent,
+      // events[4] is omitted: irrelevant deletion
+      // update of a relevant object is an update, if it stays relevant
+      {
+        cursor: {
+          clusterTime: events[5].ct,
+          collectionName,
+          id: events[5]._id,
+        },
+        updateDescription: events[5].u,
+        operationType: "update",
+        id: events[5].a._id,
+      } satisfies CSUpdateEvent,
+      // update of a relevant object is a sutraction, if it is not relevant anymore
+      {
+        cursor: {
+          clusterTime: events[6].ct,
+          collectionName,
+          id: events[6]._id,
+        },
+        id: events[6].b._id,
+        operationType: "subtraction",
+      } satisfies CSSubtractionEvent,
+      // update of an irrelevant object is an addition, if it was not relevant
+      {
+        cursor: {
+          clusterTime: events[7].ct,
+          collectionName,
+          id: events[7]._id,
+        },
+        fullDocument: { ...events[7].a, _id: { a: 0, id: events[7].a._id } },
+        operationType: "addition",
+      } satisfies CSAdditionEvent,
+      // events[8] is omitted: it is an update to an irrelevant object, which is still irrelevant
+      {
+        cursor: {
+          clusterTime: events[9].ct,
+          collectionName,
+          id: events[9]._id,
+        },
+        operationType: "noop",
+      } satisfies CSNoopEvent,
+      // events[10] and events[11] are omitted: they have the largest cluster time, so we ignore them
+    ]);
+  });
 });
