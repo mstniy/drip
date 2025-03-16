@@ -28,6 +28,7 @@ drip_demo> db.drip_demo.insert({userId: "me", title: "test2"}) // Insert another
 drip_demo> db.drip_demo.updateOne({title: "test"}, {$set: {userId: "you"}}) // Lose access to an item
 drip_demo> db.drip_demo.updateOne({title: "test"}, {$set: {userId: "me"}}) // Gain access to an item
 drip_demo> db.drip_demo.updateOne({title: "test"}, {$set: {title: "new title"}}) // Update an item
+drip_demo> db.drip_demo.deleteOne({title: "new title"}) // Delete an item
 ```
 
 Note that the MongoDB documents must satisfy the schema defined in `demo.ts`.
