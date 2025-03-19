@@ -26,3 +26,9 @@ export function synthStage(s: DripPipelineStageParsed): DripPipelineStage {
   s.type satisfies "unset";
   return { $unset: s.fields };
 }
+
+export function synthPipeline(
+  pipeline: readonly DripPipelineStageParsed[]
+): DripPipelineStage[] {
+  return pipeline.map(synthStage);
+}

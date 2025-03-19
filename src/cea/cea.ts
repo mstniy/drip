@@ -16,8 +16,8 @@ import { minOID } from "./min_oid";
 import { derivePCSCollName } from "./derive_pcs_coll_name";
 import { scopeStages } from "./scope_ppl/scope_stage";
 import { invertPipeline } from "./invert_ppl";
-import { parseStage } from "./parse_ppl/parse_stage";
-import { synthStage } from "./parse_ppl/synth_stage";
+import { parsePipeline } from "./parse_ppl/parse_pipeline";
+import { synthPipeline, synthStage } from "./parse_ppl/synth_pipeline";
 
 function pcseLT(
   a: Pick<PCSEventCommon, "ct" | "_id">,
@@ -76,10 +76,12 @@ export async function* dripCEAResume(
   cursor: CEACursor,
   pipeline: Readonly<DripPipeline>
 ): AsyncGenerator<CSEvent, void, void> {
-  const pipelineScopedToAfter = scopeStages(pipeline, "a");
-  const pipelineScopedToBefore = scopeStages(pipeline, "b");
+  const pipelineParsed = parsePipeline(pipeline);
+  const pipelineScopedToAfter = synthPipeline(scopeStages(pipelineParsed, "a"));
+  const pipelineScopedToBefore = scopeStages(pipelineParsed, "b");
+  const pipelineScopedToBeforeSynthed = synthPipeline(pipelineScopedToBefore);
   const pipelineScopedToBeforeInverted = invertPipeline(
-    pipelineScopedToBefore.map(parseStage)
+    pipelineScopedToBefore
   )?.map(synthStage);
   const coll = db.collection(derivePCSCollName(cursor.collectionName));
 
@@ -182,7 +184,7 @@ export async function* dripCEAResume(
         // as they might modify the id field.
         { $addFields: { id: "$b._id" } },
         ...pipelineScopedToAfter,
-        ...pipelineScopedToBefore,
+        ...pipelineScopedToBeforeSynthed,
         {
           $sort: {
             ct: 1,
@@ -254,7 +256,7 @@ export async function* dripCEAResume(
       [
         { $match: { ...matchRelevantEvents, o: "u" } },
         { $addFields: { id: "$b._id" } },
-        ...pipelineScopedToBefore,
+        ...pipelineScopedToBeforeSynthed,
         {
           $sort: {
             ct: 1,
@@ -288,7 +290,7 @@ export async function* dripCEAResume(
       [
         { $match: { ...matchRelevantEvents, o: "d" } },
         { $addFields: { id: "$b._id" } },
-        ...pipelineScopedToBefore,
+        ...pipelineScopedToBeforeSynthed,
         {
           $sort: {
             ct: 1,

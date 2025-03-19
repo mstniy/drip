@@ -9,7 +9,7 @@ export type DripPipelineStage =
   | PipelineStage.Project
   | PipelineStage.Redact
   | PipelineStage.ReplaceRoot
-  | PipelineStage.ReplaceWith
+  | { $replaceWith: unknown }
   | PipelineStage.Set
   | PipelineStage.Unset;
 

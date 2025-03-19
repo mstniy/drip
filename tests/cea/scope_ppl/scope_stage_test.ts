@@ -11,7 +11,8 @@ describe("scopeStage", () => {
     assert.deepStrictEqual(
       scopeStage(
         {
-          $addFields: {
+          type: "addFields",
+          fields: {
             a: "$x",
             b: "$y",
           },
@@ -19,7 +20,8 @@ describe("scopeStage", () => {
         "c"
       ),
       {
-        $addFields: {
+        type: "addFields",
+        fields: {
           "c.a": "$c.x",
           "c.b": "$c.y",
         },
@@ -112,8 +114,17 @@ describe("scopeStage", () => {
 describe("scopeStages", () => {
   it("works", () => {
     assert.deepStrictEqual(
-      scopeStages([{ $match: { a: 0 } }, { $project: { a: 1 } }], "c"),
-      [{ $match: { "c.a": 0 } }, { $project: { "c.a": 1 } }]
+      scopeStages(
+        [
+          { type: "match", filter: { a: 0 } },
+          { type: "project", fields: { a: 1 } },
+        ],
+        "c"
+      ),
+      [
+        { type: "match", filter: { "c.a": 0 } },
+        { type: "project", fields: { "c.a": 1 } },
+      ]
     );
   });
 });

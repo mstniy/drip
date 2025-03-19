@@ -1,5 +1,3 @@
-import { PipelineStage } from "mongoose";
-
 export type AddFields = {
   type: "addFields";
   fields: Record<string, unknown>;
@@ -22,7 +20,7 @@ export type ReplaceRoot = {
 };
 export type ReplaceWith = {
   type: "replaceWith";
-  expr: PipelineStage.ReplaceWith["$replaceWith"];
+  expr: unknown;
 };
 export type Set = {
   type: "set";

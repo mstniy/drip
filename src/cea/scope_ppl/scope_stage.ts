@@ -1,9 +1,7 @@
 import _ from "lodash";
-import { DripPipelineStage } from "../../drip_pipeline";
-import { InvalidStage } from "../parse_ppl/invalid_stage";
-import { isObjectExpression, scopeExpression } from "./scope_expression";
-import { PipelineStage } from "mongoose";
+import { scopeExpression } from "./scope_expression";
 import { scopeQueryClause } from "./scope_query";
+import { DripPipelineStageParsed } from "../parse_ppl/drip_pipeline_stage_parsed";
 
 function scopeStageValueKeys(
   stageValue: Record<string, unknown>,
@@ -18,54 +16,51 @@ function scopeStageValueKeys(
 }
 
 export function scopeStage(
-  s: DripPipelineStage,
+  s: DripPipelineStageParsed,
   root: string
-): DripPipelineStage {
-  const keys = Object.keys(s);
-  if (keys.length !== 1) {
-    throw new InvalidStage(
-      "A pipeline stage specification object must contain exactly one field."
-    );
+): DripPipelineStageParsed {
+  if (s.type === "addFields") {
+    return { type: "addFields", fields: scopeStageValueKeys(s.fields, root) };
   }
-  const stage = keys[0]!;
-  const stageValue = Object.values(s)[0] as unknown;
-  switch (stage) {
-    case "$redact":
-    case "$replaceRoot":
-    case "$replaceWith":
-      return _.mapValues(s, (v) =>
-        scopeExpression(v, root, {})
-      ) as DripPipelineStage;
-    case "$addFields":
-    case "$project":
-    case "$set":
-      return _.mapValues(s, (v) =>
-        scopeStageValueKeys(v, root)
-      ) as DripPipelineStage;
-    case "$match":
-      if (!isObjectExpression(stageValue)) {
-        throw new InvalidStage(
-          "the match filter must be an expression in an object"
-        );
-      }
-      return { $match: scopeQueryClause(stageValue, root) };
-    case "$unset": {
-      const unsets = stageValue as PipelineStage.Unset["$unset"];
-      return {
-        $unset:
-          typeof unsets === "string"
-            ? `${root}.${unsets}`
-            : unsets.map((p) => `${root}.${p}`),
-      };
-    }
-    default:
-      throw new InvalidStage(`Unrecognized pipeline stage name: '${stage}'`);
+  if (s.type === "project") {
+    return { type: "project", fields: scopeStageValueKeys(s.fields, root) };
   }
+  if (s.type === "set") {
+    return { type: "set", fields: scopeStageValueKeys(s.fields, root) };
+  }
+  if (s.type === "redact") {
+    return { type: "redact", expr: scopeExpression(s.expr, root, {}) };
+  }
+  if (s.type === "replaceRoot") {
+    return {
+      type: "replaceRoot",
+      newRoot: scopeExpression(s.newRoot, root, {}),
+    };
+  }
+  if (s.type === "replaceWith") {
+    return {
+      type: "replaceWith",
+      expr: scopeExpression(s.expr, root, {}),
+    };
+  }
+  if (s.type === "match") {
+    return { type: "match", filter: scopeQueryClause(s.filter, root) };
+  }
+  s.type satisfies "unset";
+
+  const unsets = s.fields;
+  return {
+    type: "unset",
+    fields:
+      typeof unsets === "string"
+        ? `${root}.${unsets}`
+        : unsets.map((p) => `${root}.${p}`),
+  };
 }
 
 export function scopeStages(
-  s: readonly DripPipelineStage[],
+  s: readonly DripPipelineStageParsed[],
   root: string
-): DripPipelineStage[] {
+): DripPipelineStageParsed[] {
   return s.map((ss) => scopeStage(ss, root));
 }

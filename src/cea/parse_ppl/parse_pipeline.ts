@@ -4,7 +4,7 @@ import { DripPipelineStage } from "../../drip_pipeline";
 import { InvalidStage } from "./invalid_stage";
 import { DripPipelineStageParsed } from "./drip_pipeline_stage_parsed";
 
-export function parseStage(s: DripPipelineStage): DripPipelineStageParsed {
+function parseStage(s: DripPipelineStage): DripPipelineStageParsed {
   const keys = Object.keys(s);
   if (keys.length !== 1) {
     throw new InvalidStage(
@@ -50,4 +50,10 @@ export function parseStage(s: DripPipelineStage): DripPipelineStageParsed {
 
   s satisfies PipelineStage.Unset;
   return { type: "unset", fields: s.$unset };
+}
+
+export function parsePipeline(
+  pipeline: readonly DripPipelineStage[]
+): DripPipelineStageParsed[] {
+  return pipeline.map(parseStage);
 }
