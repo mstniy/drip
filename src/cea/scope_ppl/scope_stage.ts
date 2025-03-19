@@ -1,6 +1,6 @@
 import _ from "lodash";
 import { DripPipelineStage } from "../../drip_pipeline";
-import { InvalidStage } from "./invalid_stage";
+import { InvalidStage } from "../parse_ppl/invalid_stage";
 import { isObjectExpression, scopeExpression } from "./scope_expression";
 import { PipelineStage } from "mongoose";
 import { scopeQueryClause } from "./scope_query";
@@ -28,7 +28,7 @@ export function scopeStage(
     );
   }
   const stage = keys[0]!;
-  const stageValue = Object.values(s)[0] as string;
+  const stageValue = Object.values(s)[0] as unknown;
   switch (stage) {
     case "$redact":
     case "$replaceRoot":

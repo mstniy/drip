@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import { strict as assert } from "assert";
-import { InvalidStage } from "../../../src/cea/scope_ppl/invalid_stage";
+import { InvalidStage } from "../../../src/cea/parse_ppl/invalid_stage";
 import {
   scopeStage,
   scopeStages,

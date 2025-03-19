@@ -15,6 +15,9 @@ import { oidLT } from "./oid_less";
 import { minOID } from "./min_oid";
 import { derivePCSCollName } from "./derive_pcs_coll_name";
 import { scopeStages } from "./scope_ppl/scope_stage";
+import { invertPipeline } from "./invert_ppl";
+import { parseStage } from "./parse_ppl/parse_stage";
+import { synthStage } from "./parse_ppl/synth_stage";
 
 function pcseLT(
   a: Pick<PCSEventCommon, "ct" | "_id">,
@@ -75,6 +78,9 @@ export async function* dripCEAResume(
 ): AsyncGenerator<CSEvent, void, void> {
   const pipelineScopedToAfter = scopeStages(pipeline, "a");
   const pipelineScopedToBefore = scopeStages(pipeline, "b");
+  const pipelineScopedToBeforeInverted = invertPipeline(
+    pipelineScopedToBefore.map(parseStage)
+  )?.map(synthStage);
   const coll = db.collection(derivePCSCollName(cursor.collectionName));
 
   const minCT = z
@@ -212,6 +218,9 @@ export async function* dripCEAResume(
       [
         { $match: { ...matchRelevantEvents, o: "u" } },
         ...pipelineScopedToAfter,
+        ...(pipelineScopedToBeforeInverted
+          ? pipelineScopedToBeforeInverted
+          : []),
         {
           $sort: {
             ct: 1,
