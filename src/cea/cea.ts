@@ -117,28 +117,25 @@ export async function* dripCEAResume(
   }
 
   const matchRelevantEvents = {
-    $match: {
-      v: 1,
-      ct: {
-        // Further change events with this same CT might still be added,
-        // so ignore any having that CT for now.
-        $lt: maxCT,
-      },
-      $or: [
-        { ct: { $gt: cursor.clusterTime } },
-        {
-          ct: { $eq: cursor.clusterTime },
-          _id: { $gt: cursor.id },
-        },
-      ],
+    v: 1,
+    ct: {
+      // Further change events with this same CT might still be added,
+      // so ignore any having that CT for now.
+      $lt: maxCT,
     },
+    $or: [
+      { ct: { $gt: cursor.clusterTime } },
+      {
+        ct: { $eq: cursor.clusterTime },
+        _id: { $gt: cursor.id },
+      },
+    ],
   };
 
   const c1 = coll
     .aggregate(
       [
-        { $match: { v: 1, o: "i" } },
-        matchRelevantEvents,
+        { $match: { ...matchRelevantEvents, o: "i" } },
         ...pipelineScopedToAfter,
         {
           $sort: {
@@ -174,8 +171,7 @@ export async function* dripCEAResume(
   const c2a = coll
     .aggregate(
       [
-        { $match: { v: 1, o: "u" } },
-        matchRelevantEvents,
+        { $match: { ...matchRelevantEvents, o: "u" } },
         // Take a backup before running the given stages,
         // as they might modify the id field.
         { $addFields: { id: "$b._id" } },
@@ -214,8 +210,7 @@ export async function* dripCEAResume(
   const c2b = coll
     .aggregate(
       [
-        { $match: { v: 1, o: "u" } },
-        matchRelevantEvents,
+        { $match: { ...matchRelevantEvents, o: "u" } },
         ...pipelineScopedToAfter,
         {
           $sort: {
@@ -248,8 +243,7 @@ export async function* dripCEAResume(
   const c2c = coll
     .aggregate(
       [
-        { $match: { v: 1, o: "u" } },
-        matchRelevantEvents,
+        { $match: { ...matchRelevantEvents, o: "u" } },
         { $addFields: { id: "$b._id" } },
         ...pipelineScopedToBefore,
         {
@@ -283,8 +277,7 @@ export async function* dripCEAResume(
   const c3 = coll
     .aggregate(
       [
-        { $match: { v: 1, o: "d" } },
-        matchRelevantEvents,
+        { $match: { ...matchRelevantEvents, o: "d" } },
         { $addFields: { id: "$b._id" } },
         ...pipelineScopedToBefore,
         {
@@ -318,66 +311,30 @@ export async function* dripCEAResume(
       };
     });
 
-  const c4 = coll
-    .aggregate(
-      [
-        { $match: { v: 1, o: "n" } },
-        matchRelevantEvents,
-        {
-          $sort: {
-            ct: 1,
-            _id: 1,
-          },
-        },
-        {
-          $project: {
-            ct: 1,
-          },
-        },
-      ],
-      { readConcern: ReadConcernLevel.majority }
-    )
-    .map((x) =>
-      z
-        .object({
-          _id: z.instanceof(ObjectId),
-          ct: z.instanceof(Timestamp),
-        })
-        .parse(x)
-    )
-    .map((x) => {
-      return {
-        op: "n" as const,
-        ...x,
-      };
-    });
+  let lastEventCT: Timestamp | undefined;
 
   for await (const cse of streamAdd(
-    // no-op events
-    c4[Symbol.asyncIterator](),
+    // additions due to document insertions
+    c1[Symbol.asyncIterator](),
     streamAdd(
-      // additions due to document insertions
-      c1[Symbol.asyncIterator](),
-      streamAdd(
-        streamSquashMerge(
-          [
-            // updates
-            c2a[Symbol.asyncIterator](),
-            // additions due to document updates (when cleaned of updates)
-            c2b[Symbol.asyncIterator](),
-            // subtractions due to document updates (when cleaned of updates)
-            c2c[Symbol.asyncIterator](),
-          ],
-          pcseLT
-        ),
-        // subtractions due to document deletions
-        c3[Symbol.asyncIterator](),
+      streamSquashMerge(
+        [
+          // updates
+          c2a[Symbol.asyncIterator](),
+          // additions due to document updates (when cleaned of updates)
+          c2b[Symbol.asyncIterator](),
+          // subtractions due to document updates (when cleaned of updates)
+          c2c[Symbol.asyncIterator](),
+        ],
         pcseLT
       ),
+      // subtractions due to document deletions
+      c3[Symbol.asyncIterator](),
       pcseLT
     ),
     pcseLT
   )) {
+    lastEventCT = cse.ct;
     if (cse.op === "u") {
       yield {
         operationType: "update",
@@ -399,7 +356,8 @@ export async function* dripCEAResume(
           id: cse._id,
         },
       } satisfies CSAdditionEvent;
-    } else if (cse.op === "s") {
+    } else {
+      cse.op satisfies "s";
       yield {
         operationType: "subtraction",
         cursor: {
@@ -409,18 +367,49 @@ export async function* dripCEAResume(
         },
         id: cse.id,
       } satisfies CSSubtractionEvent;
-    } else {
-      cse.op satisfies "n";
-      yield {
-        operationType: "noop",
-        cursor: {
-          collectionName: cursor.collectionName,
-          clusterTime: cse.ct,
-          id: cse._id,
-        },
-      } satisfies CSNoopEvent;
     }
   }
+
+  yield* coll
+    .find(
+      {
+        $and: [
+          matchRelevantEvents,
+          {
+            o: "n",
+            ...(lastEventCT
+              ? {
+                  ct: {
+                    $gt: lastEventCT,
+                  },
+                }
+              : {}),
+          },
+        ],
+      },
+      { readConcern: ReadConcernLevel.majority }
+    )
+    .sort({ ct: -1 })
+    .limit(1)
+    .project({ ct: 1 })
+    .map((x) =>
+      z
+        .object({
+          _id: z.instanceof(ObjectId),
+          ct: z.instanceof(Timestamp),
+        })
+        .parse(x)
+    )
+    .map((x) => {
+      return {
+        operationType: "noop" as const,
+        cursor: {
+          collectionName: cursor.collectionName,
+          clusterTime: x.ct,
+          id: x._id,
+        },
+      } satisfies CSNoopEvent;
+    });
 }
 
 export class CEACannotResumeError extends Error {}

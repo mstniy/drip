@@ -218,7 +218,14 @@ describe("dripCEAResume", () => {
     } satisfies PCSUpdateEvent,
     {
       _id: new ObjectId(),
-      ct: new Timestamp({ t: 1740050687, i: 1 }),
+      ct: new Timestamp({ t: 1740050687, i: 2 }),
+      w: new Date(),
+      o: "n",
+      v: 1,
+    } satisfies PCSNoopEvent,
+    {
+      _id: new ObjectId(),
+      ct: new Timestamp({ t: 1740050687, i: 3 }),
       w: new Date(),
       o: "n",
       v: 1,
@@ -312,9 +319,9 @@ describe("dripCEAResume", () => {
       } satisfies CSUpdateEvent,
       {
         cursor: {
-          clusterTime: events[9].ct,
+          clusterTime: events[10].ct,
           collectionName,
-          id: events[9]._id,
+          id: events[10]._id,
         },
         operationType: "noop",
       } satisfies CSNoopEvent,
@@ -388,15 +395,110 @@ describe("dripCEAResume", () => {
         operationType: "addition",
       } satisfies CSAdditionEvent,
       // events[8] is omitted: it is an update to an irrelevant object, which is still irrelevant
+      // events[9] is omitted: it is a noop event which is not the latest one
       {
         cursor: {
-          clusterTime: events[9].ct,
+          clusterTime: events[10].ct,
           collectionName,
-          id: events[9]._id,
+          id: events[10]._id,
         },
         operationType: "noop",
       } satisfies CSNoopEvent,
-      // events[10] and events[11] are omitted: they have the largest cluster time, so we ignore them
+      // events[11] and events[12] are omitted: they have the largest cluster time, so we ignore them
     ]);
+  });
+  describe("noop", () => {
+    it("returns the last relevant noop if no other event was returned", async () => {
+      const res = await genToArray(
+        dripCEAResume(
+          db,
+          {
+            clusterTime: events[8].ct,
+            collectionName,
+            id: events[8]._id,
+          },
+          []
+        )
+      );
+
+      assert.deepStrictEqual(res, [
+        {
+          cursor: {
+            clusterTime: events[10].ct,
+            collectionName,
+            id: events[10]._id,
+          },
+          operationType: "noop",
+        } satisfies CSNoopEvent,
+      ]);
+    });
+    it("does not return a noop if none is more recent than the latest other event", async () => {
+      const collectionName = getRandomString();
+      const events = [
+        {
+          _id: new ObjectId(),
+          ct: new Timestamp({ t: 1740050686, i: 0 }),
+          w: new Date(),
+          o: "n",
+          v: 1,
+        } satisfies PCSNoopEvent,
+        {
+          _id: new ObjectId(),
+          ct: new Timestamp({ t: 1740050687, i: 0 }),
+          w: new Date(),
+          o: "n",
+          v: 1,
+        } satisfies PCSNoopEvent,
+        {
+          _id: new ObjectId(),
+          ct: new Timestamp({ t: 1740050688, i: 0 }),
+          w: new Date(),
+          o: "n",
+          v: 1,
+        } satisfies PCSNoopEvent,
+        {
+          _id: new ObjectId(),
+          a: { _id: "a", a: 0 },
+          ct: new Timestamp({ t: 1740050689, i: 0 }),
+          w: new Date(),
+          k: { _id: "a" },
+          o: "i",
+          v: 1,
+        } satisfies PCSInsertionEvent,
+        {
+          _id: new ObjectId(),
+          ct: new Timestamp({ t: 1740050690, i: 0 }),
+          w: new Date(),
+          o: "n",
+          v: 1,
+        } satisfies PCSNoopEvent,
+      ] as const;
+
+      await db.collection(`_drip_pcs_${collectionName}`).insertMany(events);
+
+      const res = await genToArray(
+        dripCEAResume(
+          db,
+          {
+            clusterTime: events[1].ct,
+            collectionName,
+            id: events[1]._id,
+          },
+          []
+        )
+      );
+
+      assert.deepStrictEqual(res, [
+        {
+          cursor: {
+            clusterTime: events[3].ct,
+            collectionName,
+            id: events[3]._id,
+          },
+          fullDocument: events[3].a,
+          operationType: "addition",
+        } satisfies CSAdditionEvent,
+      ]);
+    });
   });
 });
