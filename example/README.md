@@ -1,6 +1,8 @@
 This is a small demo that uses Drip to synchronize a hypothetical list of todo items from a local MongoDB instance.
 
-Make sure you have a local MongoDB instance running on port 27017 (the default for MongoDB).
+Make sure you have a local MongoDB replica set running on port 27017, the default for MongoDB.
+
+If you are using VSCode, you can use the defined task to spin up such an instance.
 
 Then, create the target collection with the right config:
 
