@@ -1,16 +1,14 @@
-import { PipelineStage } from "mongoose";
-
 export type DripPipelineStage =
-  | PipelineStage.AddFields
+  | { $addFields: Record<string, unknown> }
   // We exclude the $fill stage because it is
   // poorly documented
   //| PipelineStage.Fill
-  | PipelineStage.Match
-  | PipelineStage.Project
-  | PipelineStage.Redact
-  | PipelineStage.ReplaceRoot
+  | { $match: Record<string, unknown> }
+  | { $project: Record<string, unknown> }
+  | { $redact: unknown }
+  | { $replaceRoot: { newRoot: unknown } }
   | { $replaceWith: unknown }
-  | PipelineStage.Set
-  | PipelineStage.Unset;
+  | { $set: Record<string, unknown> }
+  | { $unset: string[] | string };
 
 export type DripPipeline = DripPipelineStage[];

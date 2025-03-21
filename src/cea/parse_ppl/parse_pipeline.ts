@@ -1,5 +1,3 @@
-import { PipelineStage } from "mongoose";
-
 import { DripPipelineStage } from "../../drip_pipeline";
 import { InvalidStage } from "./invalid_stage";
 import { DripPipelineStageParsed } from "./drip_pipeline_stage_parsed";
@@ -48,7 +46,6 @@ function parseStage(s: DripPipelineStage): DripPipelineStageParsed {
     return { type: "match", filter: s.$match };
   }
 
-  s satisfies PipelineStage.Unset;
   return { type: "unset", fields: s.$unset };
 }
 
