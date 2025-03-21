@@ -29,14 +29,14 @@ export function scopeStage(
   }
   if (s.type === "replaceRoot") {
     return {
-      type: "replaceRoot",
-      newRoot: scopeExpression(s.newRoot, root, {}),
+      type: "set",
+      fields: { [root]: scopeExpression(s.newRoot, root, {}) },
     };
   }
   if (s.type === "replaceWith") {
     return {
-      type: "replaceWith",
-      expr: scopeExpression(s.expr, root, {}),
+      type: "set",
+      fields: { [root]: scopeExpression(s.expr, root, {}) },
     };
   }
   if (s.type === "match") {

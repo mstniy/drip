@@ -69,6 +69,28 @@ describe("scopeStage", () => {
       }
     );
   });
+  it("can scope $replaceRoot", () => {
+    assert.deepStrictEqual(
+      scopeStage({ type: "replaceRoot", newRoot: "$a" }, "c"),
+      {
+        type: "set",
+        fields: {
+          c: "$c.a",
+        },
+      }
+    );
+  });
+  it("can scope $replaceWith", () => {
+    assert.deepStrictEqual(
+      scopeStage({ type: "replaceWith", expr: "$a" }, "c"),
+      {
+        type: "set",
+        fields: {
+          c: "$c.a",
+        },
+      }
+    );
+  });
   it("can scope $unset", () => {
     assert.deepStrictEqual(
       scopeStage(
