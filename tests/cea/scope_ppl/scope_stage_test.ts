@@ -27,18 +27,45 @@ describe("scopeStage", () => {
       }
     );
   });
-  it("can scope $replaceRoot", () => {
+  it("can scope $project", () => {
     assert.deepStrictEqual(
       scopeStage(
         {
-          type: "replaceRoot",
-          newRoot: "$a",
+          type: "project",
+          fields: {
+            a: "$x",
+            b: "$y",
+          },
         },
         "c"
       ),
       {
-        type: "replaceRoot",
-        newRoot: "$c.a",
+        type: "project",
+        fields: {
+          "c.a": "$c.x",
+          "c.b": "$c.y",
+        },
+      }
+    );
+  });
+  it("can scope $set", () => {
+    assert.deepStrictEqual(
+      scopeStage(
+        {
+          type: "set",
+          fields: {
+            a: "$x",
+            b: "$y",
+          },
+        },
+        "c"
+      ),
+      {
+        type: "set",
+        fields: {
+          "c.a": "$c.x",
+          "c.b": "$c.y",
+        },
       }
     );
   });
