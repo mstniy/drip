@@ -1,4 +1,3 @@
-import _ from "lodash";
 import { scopeExpression } from "./scope_expression";
 import { scopeQueryClause } from "./scope_query";
 import { DripPipelineStageParsed } from "../parse_ppl/drip_pipeline_stage_parsed";
