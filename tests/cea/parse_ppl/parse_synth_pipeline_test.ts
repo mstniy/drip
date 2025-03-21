@@ -7,7 +7,6 @@ import { DripPipelineStage } from "../../../src/drip_pipeline";
 import { synthPipeline } from "../../../src/cea/parse_ppl/synth_pipeline";
 
 const pairs = [
-  [[{ $redact: 0 }], [{ type: "redact", expr: 0 }]],
   [[{ $replaceRoot: { newRoot: 0 } }], [{ type: "replaceRoot", newRoot: 0 }]],
   [[{ $replaceWith: 0 }], [{ type: "replaceWith", expr: 0 }]],
   [[{ $addFields: { a: 0 } }], [{ type: "addFields", fields: { a: 0 } }]],

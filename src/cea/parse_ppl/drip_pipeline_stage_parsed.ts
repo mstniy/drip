@@ -10,10 +10,6 @@ export type Project = {
   type: "project";
   fields: Record<string, unknown>;
 };
-export type Redact = {
-  type: "redact";
-  expr: unknown;
-};
 export type ReplaceRoot = {
   type: "replaceRoot";
   newRoot: unknown;
@@ -35,7 +31,6 @@ export type DripPipelineStageParsed =
   | AddFields
   | Match
   | Project
-  | Redact
   | ReplaceRoot
   | ReplaceWith
   | Set

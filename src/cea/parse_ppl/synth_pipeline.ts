@@ -11,9 +11,6 @@ export function synthStage(s: DripPipelineStageParsed): DripPipelineStage {
   if (s.type === "project") {
     return { $project: s.fields };
   }
-  if (s.type === "redact") {
-    return { $redact: s.expr };
-  }
   if (s.type === "replaceRoot") {
     return { $replaceRoot: { newRoot: s.newRoot } };
   }

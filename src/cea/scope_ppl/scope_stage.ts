@@ -27,9 +27,6 @@ export function scopeStage(
   if (s.type === "set") {
     return { type: "set", fields: scopeStageValueKeys(s.fields, root) };
   }
-  if (s.type === "redact") {
-    return { type: "redact", expr: scopeExpression(s.expr, root, {}) };
-  }
   if (s.type === "replaceRoot") {
     return {
       type: "replaceRoot",

@@ -9,9 +9,6 @@ function parseStage(s: DripPipelineStage): DripPipelineStageParsed {
       "A pipeline stage specification object must contain exactly one field."
     );
   }
-  if ("$redact" in s) {
-    return { type: "redact", expr: s.$redact };
-  }
   if ("$replaceRoot" in s) {
     return {
       type: "replaceRoot",

@@ -5,7 +5,6 @@ export type DripPipelineStage =
   //| PipelineStage.Fill
   | { $match: Record<string, unknown> }
   | { $project: Record<string, unknown> }
-  | { $redact: unknown }
   | { $replaceRoot: { newRoot: unknown } }
   | { $replaceWith: unknown }
   | { $set: Record<string, unknown> }
