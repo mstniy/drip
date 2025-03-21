@@ -1,4 +1,4 @@
-export async function* streamAdd<T1, T2>(
+export async function* streamAddBinary<T1, T2>(
   s1: AsyncGenerator<T1, void, void>,
   s2: AsyncGenerator<T2, void, void>,
   lt: (a: T1, b: T2) => boolean
@@ -28,6 +28,32 @@ export async function* streamAdd<T1, T2>(
 
 type AGYieldType<T extends AsyncGenerator<unknown, unknown, unknown>> =
   T extends AsyncGenerator<infer TT, unknown, unknown> ? TT : unknown;
+
+async function* emptyGenerator() {}
+
+export function streamAdd<
+  Generators extends readonly AsyncGenerator<unknown, void, void>[]
+>(
+  ss: Generators,
+  lt: (
+    a: AGYieldType<Generators[number]>,
+    b: AGYieldType<Generators[number]>
+  ) => boolean
+): AsyncGenerator<AGYieldType<Generators[number]>, void, void> {
+  type AGenerator = AsyncGenerator<AGYieldType<Generators[number]>, void, void>;
+
+  if (ss.length === 0) {
+    return emptyGenerator();
+  }
+  if (ss.length === 1) {
+    return ss[0] as AGenerator;
+  }
+  return streamAddBinary(
+    ss[0]! as AGenerator,
+    streamAdd<AGenerator[]>(ss.slice(1) as AGenerator[], lt),
+    lt
+  );
+}
 
 export async function* streamSquashMerge<
   Generators extends readonly AsyncGenerator<unknown, void, void>[]

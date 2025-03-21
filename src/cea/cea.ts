@@ -82,7 +82,7 @@ export async function* dripCEAResume(
   const pipelineScopedToBeforeSynthed = synthPipeline(pipelineScopedToBefore);
   const pipelineScopedToBeforeInverted = invertPipeline(
     pipelineScopedToBefore
-  )?.map(synthStage);
+  ).map((ppl) => ppl.map(synthStage));
   const coll = db.collection(derivePCSCollName(cursor.collectionName));
 
   const minCT = z
@@ -215,41 +215,41 @@ export async function* dripCEAResume(
       return { op: "u" as const, ...x };
     });
 
-  const c2b = coll
-    .aggregate(
-      [
-        { $match: { ...matchRelevantEvents, o: "u" } },
-        ...pipelineScopedToAfter,
-        ...(pipelineScopedToBeforeInverted
-          ? pipelineScopedToBeforeInverted
-          : []),
-        {
-          $sort: {
-            ct: 1,
-            _id: 1,
+  const c2bs = pipelineScopedToBeforeInverted.map((ppl) =>
+    coll
+      .aggregate(
+        [
+          { $match: { ...matchRelevantEvents, o: "u" } },
+          ...pipelineScopedToAfter,
+          ...ppl,
+          {
+            $sort: {
+              ct: 1,
+              _id: 1,
+            },
           },
-        },
-        {
-          $project: {
-            ct: 1,
-            a: 1,
+          {
+            $project: {
+              ct: 1,
+              a: 1,
+            },
           },
-        },
-      ],
-      { readConcern: ReadConcernLevel.majority }
-    )
-    .map((x) =>
-      z
-        .object({
-          _id: z.instanceof(ObjectId),
-          ct: z.instanceof(Timestamp),
-          a: z.record(z.string(), z.unknown()),
-        })
-        .parse(x)
-    )
-    .map((x) => {
-      return { op: "a" as const, ...x };
-    });
+        ],
+        { readConcern: ReadConcernLevel.majority }
+      )
+      .map((x) =>
+        z
+          .object({
+            _id: z.instanceof(ObjectId),
+            ct: z.instanceof(Timestamp),
+            a: z.record(z.string(), z.unknown()),
+          })
+          .parse(x)
+      )
+      .map((x) => {
+        return { op: "a" as const, ...x };
+      })
+  );
 
   const c2c = coll
     .aggregate(
@@ -325,24 +325,23 @@ export async function* dripCEAResume(
   let lastEventCT: Timestamp | undefined;
 
   for await (const cse of streamAdd(
-    // additions due to document insertions
-    c1[Symbol.asyncIterator](),
-    streamAdd(
+    [
+      // additions due to document insertions
+      c1[Symbol.asyncIterator](),
+      // subtractions due to document deletions
+      c3[Symbol.asyncIterator](),
       streamSquashMerge(
         [
           // updates
           c2a[Symbol.asyncIterator](),
           // additions due to document updates (when cleaned of updates)
-          c2b[Symbol.asyncIterator](),
+          ...c2bs.map((c) => c[Symbol.asyncIterator]()),
           // subtractions due to document updates (when cleaned of updates)
           c2c[Symbol.asyncIterator](),
         ],
         pcseLT
       ),
-      // subtractions due to document deletions
-      c3[Symbol.asyncIterator](),
-      pcseLT
-    ),
+    ],
     pcseLT
   )) {
     lastEventCT = cse.ct;

@@ -13,21 +13,24 @@ function invertStage(stage: DripPipelineStageParsed): DripPipelineStageParsed {
 
 export function invertPipeline(
   pipeline: Readonly<DripPipelineStageParsed[]>
-): DripPipelineStageParsed[] | undefined {
+): DripPipelineStageParsed[][] {
   const numMatches = pipeline.filter((s) => s.type === "match").length;
 
   if (numMatches === 0) {
-    return [{ type: "match", filter: { $expr: false } }];
+    return [];
   }
 
   if (numMatches === 1) {
-    return pipeline
-      .slice(0, pipeline.findIndex((s) => s.type === "match") + 1)
-      .map(invertStage);
+    return [
+      pipeline
+        .slice(0, pipeline.findIndex((s) => s.type === "match") + 1)
+        .map(invertStage),
+    ];
   }
 
   // Inverting a pipeline with multiple $match stages requires
   // it to be split up into multiple pipelines, which we don't
-  // bother doing.
-  return undefined;
+  // bother doing, so we return a single sub-pipeline that
+  // matches all.
+  return [[]];
 }
