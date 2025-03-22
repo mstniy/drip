@@ -18,6 +18,7 @@ import { scopeStages } from "./scope_ppl/scope_stage";
 import { invertPipeline } from "./invert_ppl";
 import { parsePipeline } from "./parse_ppl/parse_pipeline";
 import { synthPipeline, synthStage } from "./parse_ppl/synth_pipeline";
+import { stripToGate } from "./strip_to_gate";
 
 function pcseLT(
   a: Pick<PCSEventCommon, "ct" | "_id">,
@@ -78,7 +79,7 @@ export async function* dripCEAResume(
 ): AsyncGenerator<CSEvent, void, void> {
   const pipelineParsed = parsePipeline(pipeline);
   const pipelineScopedToAfter = synthPipeline(scopeStages(pipelineParsed, "a"));
-  const pipelineScopedToBefore = scopeStages(pipelineParsed, "b");
+  const pipelineScopedToBefore = scopeStages(stripToGate(pipelineParsed), "b");
   const pipelineScopedToBeforeSynthed = synthPipeline(pipelineScopedToBefore);
   const pipelineScopedToBeforeInverted = invertPipeline(
     pipelineScopedToBefore

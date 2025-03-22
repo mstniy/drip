@@ -62,11 +62,7 @@ export function invertPipeline(
   }
 
   if (numMatches === 1) {
-    return [
-      pipeline
-        .slice(0, pipeline.findIndex((s) => s.type === "match") + 1)
-        .map(invertStage),
-    ];
+    return [pipeline.map(invertStage)];
   }
 
   // Inverting a pipeline with multiple $match stages requires
