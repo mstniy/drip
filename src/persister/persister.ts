@@ -103,7 +103,6 @@ export async function startPersister(
       const decoded = decodeResumeToken(newResumeTokenData);
       await pushPCSEventUpdateMetadata(
         {
-          v: 1,
           _id: new ObjectId(),
           // mongodb-resumetoken-decoder and the actual driver use
           // incompatible bson versions, so translate between

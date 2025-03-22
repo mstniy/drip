@@ -47,7 +47,6 @@ export async function* dripCEAStart(
         .find(
           {
             w: { $gte: syncStart },
-            v: 1,
           },
           { readConcern: ReadConcernLevel.majority }
         )
@@ -94,7 +93,7 @@ export async function* dripCEAResume(
     )
     .parse(
       await coll
-        .find({ v: 1 }, { readConcern: ReadConcernLevel.majority })
+        .find({}, { readConcern: ReadConcernLevel.majority })
         .sort({ ct: 1 })
         .limit(1)
         .project({ _id: 0, ct: 1 })
@@ -109,7 +108,7 @@ export async function* dripCEAResume(
     )
     .parse(
       await coll
-        .find({ v: 1 }, { readConcern: ReadConcernLevel.majority })
+        .find({}, { readConcern: ReadConcernLevel.majority })
         .sort({ ct: -1 })
         .limit(1)
         .project({ _id: 0, ct: 1 })
@@ -126,7 +125,6 @@ export async function* dripCEAResume(
   }
 
   const matchRelevantEvents = {
-    v: 1,
     ct: {
       // Further change events with this same CT might still be added,
       // so ignore any having that CT for now.

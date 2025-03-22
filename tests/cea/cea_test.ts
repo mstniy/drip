@@ -20,6 +20,7 @@ import { minOID } from "../../src/cea/min_oid";
 import { genToArray } from "../test_utils/gen_to_array";
 import { openTestDB } from "../test_utils/open_test_db";
 import { getRandomString } from "../test_utils/random_string";
+import { derivePCSCollName } from "../../src/cea/derive_pcs_coll_name";
 
 describe("dripCEAStart", () => {
   const collectionName = getRandomString();
@@ -38,7 +39,6 @@ describe("dripCEAStart", () => {
         _id: "a",
         a: 0,
       },
-      v: 1,
     } satisfies PCSInsertionEvent,
     {
       _id: new ObjectId(),
@@ -52,19 +52,17 @@ describe("dripCEAStart", () => {
         _id: "b",
         a: 0,
       },
-      v: 1,
     } satisfies PCSInsertionEvent,
     {
       _id: new ObjectId(),
       ct: new Timestamp({ t: 1740050684, i: 2 }),
       o: "n",
-      v: 1,
       w: new Date("2025-02-20T11:24:44.708Z"),
     } satisfies PCSNoopEvent,
   ] as const;
   before(async () => {
     [client, db] = await openTestDB();
-    await db.collection(`_drip_pcs_${collectionName}`).insertMany(events);
+    await db.collection(derivePCSCollName(collectionName)).insertMany(events);
   });
   after(() => client.close());
   it("ignores too old events", async () => {
@@ -134,7 +132,6 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "a" },
       o: "i",
-      v: 1,
     } satisfies PCSInsertionEvent,
     {
       _id: new ObjectId(),
@@ -143,7 +140,6 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "b" },
       o: "i",
-      v: 1,
     } satisfies PCSInsertionEvent,
     {
       _id: new ObjectId(),
@@ -152,7 +148,6 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "c" },
       o: "i",
-      v: 1,
     } satisfies PCSInsertionEvent,
     {
       _id: new ObjectId(),
@@ -161,7 +156,6 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "d" },
       o: "d",
-      v: 1,
     } satisfies PCSDeletionEvent,
     {
       _id: new ObjectId(),
@@ -170,7 +164,6 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "e" },
       o: "d",
-      v: 1,
     } satisfies PCSDeletionEvent,
     {
       _id: new ObjectId(),
@@ -181,7 +174,6 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "a" },
       o: "u",
-      v: 1,
     } satisfies PCSUpdateEvent,
     {
       _id: new ObjectId(),
@@ -192,7 +184,6 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "b" },
       o: "u",
-      v: 1,
     } satisfies PCSUpdateEvent,
     {
       _id: new ObjectId(),
@@ -203,7 +194,6 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "c" },
       o: "u",
-      v: 1,
     } satisfies PCSUpdateEvent,
     {
       _id: new ObjectId(),
@@ -214,21 +204,18 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "f" },
       o: "u",
-      v: 1,
     } satisfies PCSUpdateEvent,
     {
       _id: new ObjectId(),
       ct: new Timestamp({ t: 1740050687, i: 2 }),
       w: new Date(),
       o: "n",
-      v: 1,
     } satisfies PCSNoopEvent,
     {
       _id: new ObjectId(),
       ct: new Timestamp({ t: 1740050687, i: 3 }),
       w: new Date(),
       o: "n",
-      v: 1,
     } satisfies PCSNoopEvent,
     {
       _id: new ObjectId(),
@@ -237,7 +224,6 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "g" },
       o: "i",
-      v: 1,
     } satisfies PCSInsertionEvent,
     {
       _id: new ObjectId(),
@@ -246,13 +232,12 @@ describe("dripCEAResume", () => {
       w: new Date(),
       k: { _id: "h" },
       o: "i",
-      v: 1,
     } satisfies PCSInsertionEvent,
   ] as const;
   before(async () => {
     [client, db] = await openTestDB();
     collectionName = getRandomString();
-    await db.collection(`_drip_pcs_${collectionName}`).insertMany(events);
+    await db.collection(derivePCSCollName(collectionName)).insertMany(events);
   });
   after(() => client.close());
   it("yields nothing if there are no persisted events", async () => {
@@ -440,21 +425,18 @@ describe("dripCEAResume", () => {
           ct: new Timestamp({ t: 1740050686, i: 0 }),
           w: new Date(),
           o: "n",
-          v: 1,
         } satisfies PCSNoopEvent,
         {
           _id: new ObjectId(),
           ct: new Timestamp({ t: 1740050687, i: 0 }),
           w: new Date(),
           o: "n",
-          v: 1,
         } satisfies PCSNoopEvent,
         {
           _id: new ObjectId(),
           ct: new Timestamp({ t: 1740050688, i: 0 }),
           w: new Date(),
           o: "n",
-          v: 1,
         } satisfies PCSNoopEvent,
         {
           _id: new ObjectId(),
@@ -463,18 +445,16 @@ describe("dripCEAResume", () => {
           w: new Date(),
           k: { _id: "a" },
           o: "i",
-          v: 1,
         } satisfies PCSInsertionEvent,
         {
           _id: new ObjectId(),
           ct: new Timestamp({ t: 1740050690, i: 0 }),
           w: new Date(),
           o: "n",
-          v: 1,
         } satisfies PCSNoopEvent,
       ] as const;
 
-      await db.collection(`_drip_pcs_${collectionName}`).insertMany(events);
+      await db.collection(derivePCSCollName(collectionName)).insertMany(events);
 
       const res = await genToArray(
         dripCEAResume(

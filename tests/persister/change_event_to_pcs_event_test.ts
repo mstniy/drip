@@ -34,7 +34,6 @@ describe("changeEventToPCSEvent", () => {
       ct: cse.clusterTime,
       k: cse.documentKey,
       o: "i",
-      v: 1,
       w: cse.wallTime,
     } satisfies PCSInsertionEvent);
   });
@@ -72,7 +71,6 @@ describe("changeEventToPCSEvent", () => {
       ct: cse.clusterTime,
       k: cse.documentKey,
       o: "u",
-      v: 1,
       w: cse.wallTime,
     } satisfies PCSUpdateEvent);
   });
@@ -98,7 +96,6 @@ describe("changeEventToPCSEvent", () => {
       ct: cse.clusterTime,
       k: cse.documentKey,
       o: "d",
-      v: 1,
       w: cse.wallTime,
     } satisfies PCSDeletionEvent);
   });

@@ -5,8 +5,6 @@ const zodPCSEventCommon = z.object({
   _id: z.instanceof(ObjectId),
   // cluster time
   ct: z.instanceof(Timestamp),
-  // peristed change stream version
-  v: z.literal(1),
   o: z.string(),
   // wall clock
   w: z.date(),

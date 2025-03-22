@@ -97,7 +97,6 @@ describe("persister", () => {
     const e3 = zodPCSDeletionEvent.parse(pcsEvents[2]);
 
     assert.deepStrictEqual(e1, {
-      v: 1,
       o: "i",
       _id: e1._id,
       a: { _id: id, a: 0 },
@@ -107,7 +106,6 @@ describe("persister", () => {
     } satisfies PCSInsertionEvent);
 
     assert.deepStrictEqual(e2, {
-      v: 1,
       o: "u",
       _id: e2._id,
       b: { _id: id, a: 0 },
@@ -123,7 +121,6 @@ describe("persister", () => {
     } satisfies PCSUpdateEvent);
 
     assert.deepStrictEqual(e3, {
-      v: 1,
       o: "d",
       _id: e3._id,
       b: { _id: id, a: 1 },

@@ -16,7 +16,6 @@ export function changeEventToPCSEvent(
     const res = {
       _id: new ObjectId(),
       o: "i",
-      v: 1,
       ct: z.instanceof(Timestamp).parse(ce.clusterTime),
       w: z.object({ wallTime: z.date() }).parse(ce).wallTime,
       k: z.record(z.string(), z.unknown()).parse(ce.documentKey),
@@ -28,7 +27,6 @@ export function changeEventToPCSEvent(
     const res = {
       _id: new ObjectId(),
       o: "u",
-      v: 1,
       ct: z.instanceof(Timestamp).parse(ce.clusterTime),
       w: z.object({ wallTime: z.date() }).parse(ce).wallTime,
       k: z.record(z.string(), z.unknown()).parse(ce.documentKey),
@@ -41,7 +39,6 @@ export function changeEventToPCSEvent(
     const res = {
       _id: new ObjectId(),
       o: "d",
-      v: 1,
       ct: z.instanceof(Timestamp).parse(ce.clusterTime),
       w: z.object({ wallTime: z.date() }).parse(ce).wallTime,
       k: z.record(z.string(), z.unknown()).parse(ce.documentKey),
