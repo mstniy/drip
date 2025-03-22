@@ -80,4 +80,13 @@ describe("invertPipeline", () => {
       [[]]
     );
   });
+  it("combines adjacent match stages", () => {
+    assert.deepStrictEqual(
+      invertPipeline([
+        { type: "match", filter: { a: 0 } },
+        { type: "match", filter: { b: 0 } },
+      ]),
+      [[{ type: "match", filter: { $nor: [{ $and: [{ a: 0 }, { b: 0 }] }] } }]]
+    );
+  });
 });
