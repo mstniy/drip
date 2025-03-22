@@ -101,20 +101,16 @@ export async function startPersister(
       ((lastResumeToken as Record<string, unknown> | undefined) ?? {})["_data"]
     ) {
       const decoded = decodeResumeToken(newResumeTokenData);
-      await pushPCSEventUpdateMetadata(
-        {
-          _id: new ObjectId(),
-          // mongodb-resumetoken-decoder and the actual driver use
-          // incompatible bson versions, so translate between
-          // the two
-          ct: Timestamp.fromBits(decoded.timestamp.low, decoded.timestamp.high),
-          o: "n",
-          // The resume token does not have a wall clock,
-          // so our best bet is to attach ours
-          w: new Date(),
-        } satisfies PCSNoopEvent,
-        resumeToken
-      );
+      const event = {
+        _id: new ObjectId(),
+        // mongodb-resumetoken-decoder and the actual driver use
+        // incompatible bson versions, so translate between
+        // the two
+        ct: Timestamp.fromBits(decoded.timestamp.low, decoded.timestamp.high),
+        o: "n",
+        w: new Date(),
+      } satisfies PCSNoopEvent;
+      await pushPCSEventUpdateMetadata(event, resumeToken);
     }
   }) as (rt: unknown) => void);
 

@@ -46,6 +46,7 @@ export async function* dripCEAStart(
       await coll
         .find(
           {
+            o: "n",
             w: { $gte: syncStart },
           },
           { readConcern: ReadConcernLevel.majority }

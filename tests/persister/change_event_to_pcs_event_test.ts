@@ -34,7 +34,6 @@ describe("changeEventToPCSEvent", () => {
       ct: cse.clusterTime,
       k: cse.documentKey,
       o: "i",
-      w: cse.wallTime,
     } satisfies PCSInsertionEvent);
   });
   it("can convert update events", () => {
@@ -71,7 +70,6 @@ describe("changeEventToPCSEvent", () => {
       ct: cse.clusterTime,
       k: cse.documentKey,
       o: "u",
-      w: cse.wallTime,
     } satisfies PCSUpdateEvent);
   });
   it("can convert deletion events", () => {
@@ -96,7 +94,6 @@ describe("changeEventToPCSEvent", () => {
       ct: cse.clusterTime,
       k: cse.documentKey,
       o: "d",
-      w: cse.wallTime,
     } satisfies PCSDeletionEvent);
   });
   it("ignores unknown event types", () => {

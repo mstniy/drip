@@ -102,7 +102,6 @@ describe("persister", () => {
       a: { _id: id, a: 0 },
       ct: e1.ct,
       k: { _id: id },
-      w: e1.w,
     } satisfies PCSInsertionEvent);
 
     assert.deepStrictEqual(e2, {
@@ -117,7 +116,6 @@ describe("persister", () => {
       },
       ct: e2.ct,
       k: { _id: id },
-      w: e2.w,
     } satisfies PCSUpdateEvent);
 
     assert.deepStrictEqual(e3, {
@@ -126,7 +124,6 @@ describe("persister", () => {
       b: { _id: id, a: 1 },
       ct: e3.ct,
       k: { _id: id },
-      w: e3.w,
     } satisfies PCSDeletionEvent);
   }
 

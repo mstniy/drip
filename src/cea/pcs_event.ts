@@ -6,8 +6,6 @@ const zodPCSEventCommon = z.object({
   // cluster time
   ct: z.instanceof(Timestamp),
   o: z.string(),
-  // wall clock
-  w: z.date(),
 });
 
 export const zodPCSInsertionEvent = zodPCSEventCommon.merge(
@@ -46,6 +44,8 @@ export const zodPCSDeletionEvent = zodPCSEventCommon.merge(
 export const zodPCSNoopEvent = zodPCSEventCommon.merge(
   z.object({
     o: z.literal("n"),
+    // wall clock
+    w: z.date(),
   })
 );
 
