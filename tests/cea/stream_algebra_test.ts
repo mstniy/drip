@@ -1,10 +1,6 @@
 import { strict as assert } from "assert";
 import { describe, it } from "node:test";
-import {
-  streamAdd,
-  streamAddBinary,
-  streamSquashMerge,
-} from "../../src/cea/stream_algebra";
+import { streamSquashMerge } from "../../src/cea/stream_algebra";
 import { genToArray } from "../test_utils/gen_to_array";
 
 async function* streamFrom<T>(x: T[], cleanup?: () => void) {
@@ -18,96 +14,6 @@ async function* streamFrom<T>(x: T[], cleanup?: () => void) {
     }
   }
 }
-
-describe("streamAddBinary", () => {
-  it("can add two empty streams", async () => {
-    assert.deepStrictEqual(
-      await genToArray(
-        streamAddBinary(
-          streamFrom([]),
-          streamFrom([]),
-          (a: number, b: number) => a < b
-        )
-      ),
-      []
-    );
-  });
-  it("LHS can be empty", async () => {
-    assert.deepStrictEqual(
-      await genToArray(
-        streamAddBinary(
-          streamFrom([]),
-          streamFrom([1]),
-          (a: number, b: number) => a < b
-        )
-      ),
-      [1]
-    );
-  });
-  it("RHS can be empty", async () => {
-    assert.deepStrictEqual(
-      await genToArray(
-        streamAddBinary(
-          streamFrom([1]),
-          streamFrom([]),
-          (a: number, b: number) => a < b
-        )
-      ),
-      [1]
-    );
-  });
-  it("does addition", async () => {
-    assert.deepStrictEqual(
-      await genToArray(
-        streamAddBinary(
-          streamFrom([0, 2, 3, 5]),
-          streamFrom([0, 1, 4]),
-          (a: number, b: number) => a < b
-        )
-      ),
-      [0, 0, 1, 2, 3, 4, 5]
-    );
-  });
-});
-
-describe("streamAdd", () => {
-  it("can add zero streams", async () => {
-    assert.deepStrictEqual(
-      await genToArray(streamAdd([], (a: number, b: number) => a < b)),
-      []
-    );
-  });
-  it("can add one stream", async () => {
-    assert.deepStrictEqual(
-      await genToArray(
-        streamAdd([streamFrom([0])], (a: number, b: number) => a < b)
-      ),
-      [0]
-    );
-  });
-  it("can add two streams", async () => {
-    assert.deepStrictEqual(
-      await genToArray(
-        streamAdd(
-          [streamFrom([1]), streamFrom([0])],
-          (a: number, b: number) => a < b
-        )
-      ),
-      [0, 1]
-    );
-  });
-  it("can add three streams", async () => {
-    assert.deepStrictEqual(
-      await genToArray(
-        streamAdd(
-          [streamFrom([1]), streamFrom([0]), streamFrom([2])],
-          (a: number, b: number) => a < b
-        )
-      ),
-      [0, 1, 2]
-    );
-  });
-});
 
 describe("streamSquashMerge", () => {
   it("can have no streams", async () => {

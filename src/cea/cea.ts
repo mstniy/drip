@@ -9,7 +9,7 @@ import {
 import { DripPipeline } from "../drip_pipeline";
 import z from "zod";
 import { CEACursor } from "./cea_cursor";
-import { streamAdd, streamSquashMerge } from "./stream_algebra";
+import { streamSquashMerge } from "./stream_algebra";
 import { PCSEventCommon } from "./pcs_event";
 import { oidLT } from "./oid_less";
 import { minOID } from "./min_oid";
@@ -324,23 +324,18 @@ export async function* dripCEAResume(
 
   let lastEventCT: Timestamp | undefined;
 
-  for await (const cse of streamAdd(
+  for await (const cse of streamSquashMerge(
     [
       // additions due to document insertions
       c1[Symbol.asyncIterator](),
       // subtractions due to document deletions
       c3[Symbol.asyncIterator](),
-      streamSquashMerge(
-        [
-          // updates
-          c2a[Symbol.asyncIterator](),
-          // additions due to document updates (when cleaned of updates)
-          ...c2bs.map((c) => c[Symbol.asyncIterator]()),
-          // subtractions due to document updates (when cleaned of updates)
-          c2c[Symbol.asyncIterator](),
-        ],
-        pcseLT
-      ),
+      // updates
+      c2a[Symbol.asyncIterator](),
+      // additions due to document updates (when cleaned of updates)
+      ...c2bs.map((c) => c[Symbol.asyncIterator]()),
+      // subtractions due to document updates (when cleaned of updates)
+      c2c[Symbol.asyncIterator](),
     ],
     pcseLT
   )) {
