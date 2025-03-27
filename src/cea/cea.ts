@@ -185,7 +185,7 @@ export async function* dripCEAResume(
             ...x,
           };
         })
-      [Symbol.asyncIterator]()
+        [Symbol.asyncIterator]()
     )
   );
 
@@ -229,7 +229,7 @@ export async function* dripCEAResume(
         .map((x) => {
           return { op: "u" as const, ...x };
         })
-      [Symbol.asyncIterator]()
+        [Symbol.asyncIterator]()
     )
   );
 
@@ -269,7 +269,7 @@ export async function* dripCEAResume(
           .map((x) => {
             return { op: "a" as const, ...x };
           })
-        [Symbol.asyncIterator]()
+          [Symbol.asyncIterator]()
       )
     )
   );
@@ -309,7 +309,7 @@ export async function* dripCEAResume(
         .map((x) => {
           return { op: "s" as const, ...x };
         })
-      [Symbol.asyncIterator]()
+        [Symbol.asyncIterator]()
     )
   );
 
@@ -351,7 +351,7 @@ export async function* dripCEAResume(
             op: "s" as const,
           };
         })
-      [Symbol.asyncIterator]()
+        [Symbol.asyncIterator]()
     )
   );
 
@@ -409,53 +409,56 @@ export async function* dripCEAResume(
     }
   }
 
-  yield* streamTake(1, streamAppend(
-    matchRelevantEvents.toReversed().map((mre) =>
-      coll
-        .find(
-          {
-            $and: [
-              mre,
-              {
-                o: "n",
-                ...(lastEventCT
-                  ? {
-                    ct: {
-                      $gt: lastEventCT,
-                    },
-                  }
-                  : {}),
-              },
-            ],
-          },
-          { readConcern: ReadConcernLevel.majority }
-        )
-        .sort({ ct: -1 })
-        .limit(1)
-        .project({ ct: 1 })
-        .map((x) =>
-          z
-            .object({
-              _id: z.instanceof(ObjectId),
-              ct: z.instanceof(Timestamp),
-            })
-            .parse(x)
-        )
-        .map((x) => {
-          return {
-            operationType: "noop" as const,
-            cursor: {
-              collectionName: cursor.collectionName,
-              clusterTime: x.ct,
-              id: x._id,
+  yield* streamTake(
+    1,
+    streamAppend(
+      matchRelevantEvents.toReversed().map((mre) =>
+        coll
+          .find(
+            {
+              $and: [
+                mre,
+                {
+                  o: "n",
+                  ...(lastEventCT
+                    ? {
+                        ct: {
+                          $gt: lastEventCT,
+                        },
+                      }
+                    : {}),
+                },
+              ],
             },
-          } satisfies CSNoopEvent;
-        })
-      [Symbol.asyncIterator]()
+            { readConcern: ReadConcernLevel.majority }
+          )
+          .sort({ ct: -1 })
+          .limit(1)
+          .project({ ct: 1 })
+          .map((x) =>
+            z
+              .object({
+                _id: z.instanceof(ObjectId),
+                ct: z.instanceof(Timestamp),
+              })
+              .parse(x)
+          )
+          .map((x) => {
+            return {
+              operationType: "noop" as const,
+              cursor: {
+                collectionName: cursor.collectionName,
+                clusterTime: x.ct,
+                id: x._id,
+              },
+            } satisfies CSNoopEvent;
+          })
+          [Symbol.asyncIterator]()
+      )
     )
-  ));
+  );
 }
 
-export class CEACannotResumeError extends Error { }
+export class CEACannotResumeError extends Error {}
 
-export class CEACursorNotFoundError extends CEACannotResumeError { }
+export class CEACursorNotFoundError extends CEACannotResumeError {}

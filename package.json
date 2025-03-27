@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "lint": "npx tsc --noEmit && npx eslint .",
+    "lint": "npx tsc --noEmit && npx eslint . && npx prettier . --check",
     "test": "node --import tsx --test $(find . -name \"*_test.ts\")",
     "coverage": "nyc npm run test",
     "publish": "npx tsc --project tsconfig.npm.json && npm publish"
@@ -29,6 +29,7 @@
     "eslint-config-prettier": "^10.1.1",
     "mongodb-runner": "^5.8.0",
     "nyc": "^17.1.0",
+    "prettier": "3.5.3",
     "tsx": "^4.19.3",
     "typescript": "^5.6.2",
     "typescript-eslint": "^8.26.0"
