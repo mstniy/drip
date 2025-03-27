@@ -253,6 +253,20 @@ describe("dripCEAResume", () => {
     );
     assert.equal(res.length, 0);
   });
+  it("yields nothing if given time is too recent", async () => {
+    const res = await genToArray(
+      dripCEAResume(
+        db,
+        {
+          clusterTime: new Timestamp({ t: events[12].ct.t + 1, i: 0 }),
+          collectionName,
+          id: minOID,
+        },
+        []
+      )
+    );
+    assert.equal(res.length, 0);
+  });
   it("throws if passed the smallest cluster time or smaller", async (t) => {
     for (const [testName, ct] of [
       ["smaller", new Timestamp({ t: 1740050683, i: 0 })],

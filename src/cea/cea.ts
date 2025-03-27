@@ -9,7 +9,7 @@ import {
 import { DripPipeline } from "../drip_pipeline";
 import z from "zod";
 import { CEACursor } from "./cea_cursor";
-import { streamSquashMerge } from "./stream_algebra";
+import { streamAppend, streamSquashMerge, streamTake } from "./stream_algebra";
 import { PCSEventCommon } from "./pcs_event";
 import { oidLT } from "./oid_less";
 import { minOID } from "./min_oid";
@@ -125,217 +125,251 @@ export async function* dripCEAResume(
     throw new CEACursorNotFoundError();
   }
 
-  const matchRelevantEvents = {
-    ct: {
-      // Further change events with this same CT might still be added,
-      // so ignore any having that CT for now.
-      $lt: maxCT,
-    },
-    $or: [
-      { ct: { $gt: cursor.clusterTime } },
-      {
-        ct: { $eq: cursor.clusterTime },
-        _id: { $gt: cursor.id },
+  if (!cursor.clusterTime.lt(maxCT)) {
+    return;
+  }
+
+  // As we use the tuple [clusterTime, id] as the sort order,
+  // we need two queries.
+  // Or one query with an $or clause, but Mongo has trouble
+  // planning them optimally.
+  const matchRelevantEvents = [
+    {
+      ct: {
+        $eq: cursor.clusterTime,
       },
-    ],
-  };
+      _id: { $gt: cursor.id },
+    },
+    {
+      ct: {
+        $lt: maxCT,
+        $gt: cursor.clusterTime,
+      },
+    },
+  ];
 
-  const c1 = coll
-    .aggregate(
-      [
-        { $match: { ...matchRelevantEvents, o: "i" } },
-        ...pipelineScopedToAfter,
-        {
-          $sort: {
-            ct: 1,
-            _id: 1,
-          },
-        },
-        {
-          $project: {
-            ct: 1,
-            a: 1,
-          },
-        },
-      ],
-      { readConcern: ReadConcernLevel.majority }
-    )
-    .map((x) =>
-      z
-        .object({
-          _id: z.instanceof(ObjectId),
-          ct: z.instanceof(Timestamp),
-          a: z.record(z.string(), z.unknown()),
-        })
-        .parse(x)
-    )
-    .map((x) => {
-      return {
-        op: "a" as const,
-        ...x,
-      };
-    });
-
-  const c2a = coll
-    .aggregate(
-      [
-        { $match: { ...matchRelevantEvents, o: "u" } },
-        // Take a backup before running the given stages,
-        // as they might modify the id field.
-        { $addFields: { id: "$b._id" } },
-        ...pipelineScopedToAfter,
-        ...pipelineScopedToBeforeSynthed,
-        {
-          $sort: {
-            ct: 1,
-            _id: 1,
-          },
-        },
-        {
-          $project: {
-            ct: 1,
-            u: 1,
-            id: 1,
-          },
-        },
-      ],
-      { readConcern: ReadConcernLevel.majority }
-    )
-    .map((x) =>
-      z
-        .object({
-          _id: z.instanceof(ObjectId),
-          ct: z.instanceof(Timestamp),
-          u: z.record(z.string(), z.unknown()),
-          id: z.unknown(),
-        })
-        .parse(x)
-    )
-    .map((x) => {
-      return { op: "u" as const, ...x };
-    });
-
-  const c2bs = pipelineScopedToBeforeInverted.map((ppl) =>
-    coll
-      .aggregate(
-        [
-          { $match: { ...matchRelevantEvents, o: "u" } },
-          ...pipelineScopedToAfter,
-          ...ppl,
-          {
-            $sort: {
-              ct: 1,
-              _id: 1,
+  const c1 = streamAppend(
+    matchRelevantEvents.map((mre) =>
+      coll
+        .aggregate(
+          [
+            { $match: { ...mre, o: "i" } },
+            ...pipelineScopedToAfter,
+            {
+              $sort: {
+                ct: 1,
+                _id: 1,
+              },
             },
-          },
-          {
-            $project: {
-              ct: 1,
-              a: 1,
+            {
+              $project: {
+                ct: 1,
+                a: 1,
+              },
             },
-          },
-        ],
-        { readConcern: ReadConcernLevel.majority }
-      )
-      .map((x) =>
-        z
-          .object({
-            _id: z.instanceof(ObjectId),
-            ct: z.instanceof(Timestamp),
-            a: z.record(z.string(), z.unknown()),
-          })
-          .parse(x)
-      )
-      .map((x) => {
-        return { op: "a" as const, ...x };
-      })
+          ],
+          { readConcern: ReadConcernLevel.majority }
+        )
+        .map((x) =>
+          z
+            .object({
+              _id: z.instanceof(ObjectId),
+              ct: z.instanceof(Timestamp),
+              a: z.record(z.string(), z.unknown()),
+            })
+            .parse(x)
+        )
+        .map((x) => {
+          return {
+            op: "a" as const,
+            ...x,
+          };
+        })
+      [Symbol.asyncIterator]()
+    )
   );
 
-  const c2c = coll
-    .aggregate(
-      [
-        { $match: { ...matchRelevantEvents, o: "u" } },
-        { $addFields: { id: "$b._id" } },
-        ...pipelineScopedToBeforeSynthed,
-        {
-          $sort: {
-            ct: 1,
-            _id: 1,
-          },
-        },
-        {
-          $project: {
-            ct: 1,
-            id: 1,
-          },
-        },
-      ],
-      { readConcern: ReadConcernLevel.majority }
-    )
-    .map((x) =>
-      z
-        .object({
-          _id: z.instanceof(ObjectId),
-          ct: z.instanceof(Timestamp),
-          id: z.unknown(),
+  const c2a = streamAppend(
+    matchRelevantEvents.map((mre) =>
+      coll
+        .aggregate(
+          [
+            { $match: { ...mre, o: "u" } },
+            // Take a backup before running the given stages,
+            // as they might modify the id field.
+            { $addFields: { id: "$b._id" } },
+            ...pipelineScopedToAfter,
+            ...pipelineScopedToBeforeSynthed,
+            {
+              $sort: {
+                ct: 1,
+                _id: 1,
+              },
+            },
+            {
+              $project: {
+                ct: 1,
+                u: 1,
+                id: 1,
+              },
+            },
+          ],
+          { readConcern: ReadConcernLevel.majority }
+        )
+        .map((x) =>
+          z
+            .object({
+              _id: z.instanceof(ObjectId),
+              ct: z.instanceof(Timestamp),
+              u: z.record(z.string(), z.unknown()),
+              id: z.unknown(),
+            })
+            .parse(x)
+        )
+        .map((x) => {
+          return { op: "u" as const, ...x };
         })
-        .parse(x)
+      [Symbol.asyncIterator]()
     )
-    .map((x) => {
-      return { op: "s" as const, ...x };
-    });
+  );
 
-  const c3 = coll
-    .aggregate(
-      [
-        { $match: { ...matchRelevantEvents, o: "d" } },
-        { $addFields: { id: "$b._id" } },
-        ...pipelineScopedToBeforeSynthed,
-        {
-          $sort: {
-            ct: 1,
-            _id: 1,
-          },
-        },
-        {
-          $project: {
-            ct: 1,
-            id: 1,
-          },
-        },
-      ],
-      { readConcern: ReadConcernLevel.majority }
+  const c2bs = pipelineScopedToBeforeInverted.map((ppl) =>
+    streamAppend(
+      matchRelevantEvents.map((mre) =>
+        coll
+          .aggregate(
+            [
+              { $match: { ...mre, o: "u" } },
+              ...pipelineScopedToAfter,
+              ...ppl,
+              {
+                $sort: {
+                  ct: 1,
+                  _id: 1,
+                },
+              },
+              {
+                $project: {
+                  ct: 1,
+                  a: 1,
+                },
+              },
+            ],
+            { readConcern: ReadConcernLevel.majority }
+          )
+          .map((x) =>
+            z
+              .object({
+                _id: z.instanceof(ObjectId),
+                ct: z.instanceof(Timestamp),
+                a: z.record(z.string(), z.unknown()),
+              })
+              .parse(x)
+          )
+          .map((x) => {
+            return { op: "a" as const, ...x };
+          })
+        [Symbol.asyncIterator]()
+      )
     )
-    .map((x) =>
-      z
-        .object({
-          _id: z.instanceof(ObjectId),
-          ct: z.instanceof(Timestamp),
-          id: z.unknown(),
+  );
+
+  const c2c = streamAppend(
+    matchRelevantEvents.map((mre) =>
+      coll
+        .aggregate(
+          [
+            { $match: { ...mre, o: "u" } },
+            { $addFields: { id: "$b._id" } },
+            ...pipelineScopedToBeforeSynthed,
+            {
+              $sort: {
+                ct: 1,
+                _id: 1,
+              },
+            },
+            {
+              $project: {
+                ct: 1,
+                id: 1,
+              },
+            },
+          ],
+          { readConcern: ReadConcernLevel.majority }
+        )
+        .map((x) =>
+          z
+            .object({
+              _id: z.instanceof(ObjectId),
+              ct: z.instanceof(Timestamp),
+              id: z.unknown(),
+            })
+            .parse(x)
+        )
+        .map((x) => {
+          return { op: "s" as const, ...x };
         })
-        .parse(x)
+      [Symbol.asyncIterator]()
     )
-    .map((x) => {
-      return {
-        ...x,
-        op: "s" as const,
-      };
-    });
+  );
+
+  const c3 = streamAppend(
+    matchRelevantEvents.map((mre) =>
+      coll
+        .aggregate(
+          [
+            { $match: { ...mre, o: "d" } },
+            { $addFields: { id: "$b._id" } },
+            ...pipelineScopedToBeforeSynthed,
+            {
+              $sort: {
+                ct: 1,
+                _id: 1,
+              },
+            },
+            {
+              $project: {
+                ct: 1,
+                id: 1,
+              },
+            },
+          ],
+          { readConcern: ReadConcernLevel.majority }
+        )
+        .map((x) =>
+          z
+            .object({
+              _id: z.instanceof(ObjectId),
+              ct: z.instanceof(Timestamp),
+              id: z.unknown(),
+            })
+            .parse(x)
+        )
+        .map((x) => {
+          return {
+            ...x,
+            op: "s" as const,
+          };
+        })
+      [Symbol.asyncIterator]()
+    )
+  );
 
   let lastEventCT: Timestamp | undefined;
 
   for await (const cse of streamSquashMerge(
     [
       // additions due to document insertions
-      c1[Symbol.asyncIterator](),
+      c1,
       // subtractions due to document deletions
-      c3[Symbol.asyncIterator](),
+      c3,
       // updates
-      c2a[Symbol.asyncIterator](),
-      // additions due to document updates (when cleaned of updates)
-      ...c2bs.map((c) => c[Symbol.asyncIterator]()),
+      c2a,
+      // additions due to document updates (might need to be cleaned of updates,
+      // we do not invert all pipelines)
+      ...c2bs,
       // subtractions due to document updates (when cleaned of updates)
-      c2c[Symbol.asyncIterator](),
+      c2c,
     ],
     pcseLT
   )) {
@@ -375,48 +409,53 @@ export async function* dripCEAResume(
     }
   }
 
-  yield* coll
-    .find(
-      {
-        $and: [
-          matchRelevantEvents,
+  yield* streamTake(1, streamAppend(
+    matchRelevantEvents.toReversed().map((mre) =>
+      coll
+        .find(
           {
-            o: "n",
-            ...(lastEventCT
-              ? {
-                  ct: {
-                    $gt: lastEventCT,
-                  },
-                }
-              : {}),
+            $and: [
+              mre,
+              {
+                o: "n",
+                ...(lastEventCT
+                  ? {
+                    ct: {
+                      $gt: lastEventCT,
+                    },
+                  }
+                  : {}),
+              },
+            ],
           },
-        ],
-      },
-      { readConcern: ReadConcernLevel.majority }
-    )
-    .sort({ ct: -1 })
-    .limit(1)
-    .project({ ct: 1 })
-    .map((x) =>
-      z
-        .object({
-          _id: z.instanceof(ObjectId),
-          ct: z.instanceof(Timestamp),
+          { readConcern: ReadConcernLevel.majority }
+        )
+        .sort({ ct: -1 })
+        .limit(1)
+        .project({ ct: 1 })
+        .map((x) =>
+          z
+            .object({
+              _id: z.instanceof(ObjectId),
+              ct: z.instanceof(Timestamp),
+            })
+            .parse(x)
+        )
+        .map((x) => {
+          return {
+            operationType: "noop" as const,
+            cursor: {
+              collectionName: cursor.collectionName,
+              clusterTime: x.ct,
+              id: x._id,
+            },
+          } satisfies CSNoopEvent;
         })
-        .parse(x)
+      [Symbol.asyncIterator]()
     )
-    .map((x) => {
-      return {
-        operationType: "noop" as const,
-        cursor: {
-          collectionName: cursor.collectionName,
-          clusterTime: x.ct,
-          id: x._id,
-        },
-      } satisfies CSNoopEvent;
-    });
+  ));
 }
 
-export class CEACannotResumeError extends Error {}
+export class CEACannotResumeError extends Error { }
 
-export class CEACursorNotFoundError extends CEACannotResumeError {}
+export class CEACursorNotFoundError extends CEACannotResumeError { }

@@ -10,18 +10,20 @@ export async function* streamSquashMerge<
     b: AGYieldType<Generators[number]>
   ) => boolean
 ): AsyncGenerator<AGYieldType<Generators[number]>, void, void> {
+  type AYieldType = AGYieldType<Generators[number]>;
+
   const ress = await Promise.all(
     ss.map(
       (s) =>
         s.next() as Promise<
-          IteratorResult<AGYieldType<Generators[number]>, void>
+          IteratorResult<AYieldType, void>
         >
     )
   );
   while (true) {
     let state:
       | { idxs: undefined }
-      | { idxs: number[]; smallest: AGYieldType<Generators[number]> } = {
+      | { idxs: number[]; smallest: AYieldType } = {
       idxs: undefined,
     };
     for (const [idx, res] of ress.entries()) {
@@ -51,12 +53,34 @@ export async function* streamSquashMerge<
       state.idxs.map(
         (idx) =>
           ss[idx]!.next() as Promise<
-            IteratorResult<AGYieldType<Generators[number]>, void>
+            IteratorResult<AYieldType, void>
           >
       )
     );
     for (const [i, idx] of state.idxs.entries()) {
       ress[idx] = news[i]!;
     }
+  }
+}
+
+export async function* streamAppend<
+  Generators extends readonly AsyncGenerator<unknown, void, void>[]
+>(
+  ss: Generators
+): AsyncGenerator<AGYieldType<Generators[number]>, void, void> {
+  type AYieldType = AGYieldType<Generators[number]>;
+
+  for (const s of ss) {
+    yield* s as AsyncGenerator<AYieldType, void, void>;
+  }
+}
+export async function* streamTake<T>(limit: number, s: AsyncGenerator<T, void, void>): AsyncGenerator<T, void, void> {
+  if (limit == 0) return;
+
+  let cnt = 0;
+  for await (const elem of s) {
+    yield elem;
+    cnt++;
+    if (cnt >= limit) break;
   }
 }
