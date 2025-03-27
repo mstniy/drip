@@ -1,5 +1,6 @@
 ## 0.1.0
 
+- Avoid using `$or`
 - Reduce client traffic by only returning the noop event with the greatest cluster time, if it is more recent than all the other events, if any exist.
 - Reduce database traffic by inverting the synced pipeline to distinguish updates from additions, if clearly beneficial.
 - Reduce database load by stripping away stages of the synced pipeline if possible.
