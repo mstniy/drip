@@ -11,7 +11,7 @@ import {
   PCSUpdateEvent,
   PCSDeletionEvent,
 } from "../../src/cea/pcs_event";
-import { startPersister } from "../../src/persister/persister";
+import { runPersister } from "../../src/persister/persister";
 import { openTestDB } from "../test_utils/open_test_db";
 import { getRandomString } from "../test_utils/random_string";
 
@@ -30,8 +30,15 @@ describe("persister", () => {
   });
   afterEach(() => client.close());
 
+  async function runPersisterDetached() {
+    const persister = runPersister(db.collection(collectionName), db);
+    while (true) {
+      await persister.next();
+    }
+  }
+
   async function test() {
-    startPersister(db.collection(collectionName), db).catch((e) =>
+    runPersisterDetached().catch((e) =>
       // The cursor of course gets killed once the client gets closed
       // at the end of the test
       assert(e instanceof MongoServerError && e.codeName === "CursorKilled")
@@ -157,7 +164,7 @@ describe("persister", () => {
     } satisfies DripMetadata);
 
     try {
-      await startPersister(db.collection(collectionName), db);
+      await runPersisterDetached();
       throw new Error("must have thrown :(");
     } catch (e) {
       assert(

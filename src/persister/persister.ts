@@ -11,10 +11,10 @@ import { PCSEventCommon, PCSNoopEvent } from "../cea/pcs_event";
 import { decodeResumeToken } from "mongodb-resumetoken-decoder";
 import z from "zod";
 
-export async function startPersister(
+export async function* runPersister(
   watchCollection: Collection,
   metadataDb: Db
-): Promise<void> {
+): AsyncGenerator<void, void, void> {
   const collectionName = watchCollection.collectionName;
   const promiseTrain = new PromiseTrain();
   const pcsColl = metadataDb.collection(derivePCSCollName(collectionName));
@@ -115,6 +115,7 @@ export async function startPersister(
   }) as (rt: unknown) => void);
 
   while (true) {
+    yield;
     const ce = await cs.next();
     lastResumeToken = ce._id;
     const pcse = changeEventToPCSEvent(ce);

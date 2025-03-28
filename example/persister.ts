@@ -1,6 +1,6 @@
 import { MongoClient } from "mongodb";
-import { startPersister } from "../src";
 import { collName, dbName, mongoURL } from "./constants";
+import { runPersister } from "../src/persister/persister";
 
 async function main() {
   const client = new MongoClient(mongoURL);
@@ -9,7 +9,11 @@ async function main() {
 
   console.log("Starting the Drip persister...");
 
-  await startPersister(coll, db);
+  const persister = runPersister(coll, db);
+
+  while (true) {
+    await persister.next();
+  }
 }
 
 void main();
