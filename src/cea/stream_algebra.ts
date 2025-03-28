@@ -76,3 +76,12 @@ export async function* streamTake<T>(
     if (cnt >= limit) break;
   }
 }
+
+export async function* streamMap<T, R>(
+  s: AsyncGenerator<T, void, void>,
+  f: (t: T) => R
+): AsyncGenerator<R, void, void> {
+  for await (const elem of s) {
+    yield f(elem);
+  }
+}

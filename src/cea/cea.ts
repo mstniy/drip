@@ -9,7 +9,12 @@ import {
 import { DripPipeline } from "../drip_pipeline";
 import z from "zod";
 import { CEACursor } from "./cea_cursor";
-import { streamAppend, streamSquashMerge, streamTake } from "./stream_algebra";
+import {
+  streamAppend,
+  streamMap,
+  streamSquashMerge,
+  streamTake,
+} from "./stream_algebra";
 import { PCSEventCommon } from "./pcs_event";
 import { oidLT } from "./oid_less";
 import { minOID } from "./min_oid";
@@ -147,6 +152,8 @@ export async function* dripCEAResume(
       },
     },
   ];
+
+  let lastEventCT: Timestamp | undefined;
 
   const c1 = streamAppend(
     matchRelevantEvents.map((mre) =>
@@ -355,9 +362,7 @@ export async function* dripCEAResume(
     )
   );
 
-  let lastEventCT: Timestamp | undefined;
-
-  for await (const cse of streamSquashMerge(
+  const cs = streamSquashMerge(
     [
       // additions due to document insertions
       c1,
@@ -372,10 +377,12 @@ export async function* dripCEAResume(
       c2c,
     ],
     pcseLT
-  )) {
+  );
+
+  yield* streamMap(cs, (cse) => {
     lastEventCT = cse.ct;
     if (cse.op === "u") {
-      yield {
+      return {
         operationType: "update",
         updateDescription: cse.u,
         cursor: {
@@ -386,7 +393,7 @@ export async function* dripCEAResume(
         id: cse.id,
       } satisfies CSUpdateEvent;
     } else if (cse.op === "a") {
-      yield {
+      return {
         operationType: "addition",
         fullDocument: cse.a,
         cursor: {
@@ -397,7 +404,7 @@ export async function* dripCEAResume(
       } satisfies CSAdditionEvent;
     } else {
       cse.op satisfies "s";
-      yield {
+      return {
         operationType: "subtraction",
         cursor: {
           collectionName: cursor.collectionName,
@@ -407,7 +414,7 @@ export async function* dripCEAResume(
         id: cse.id,
       } satisfies CSSubtractionEvent;
     }
-  }
+  });
 
   yield* streamTake(
     1,

@@ -10,6 +10,7 @@ import {
 import { CCCursor } from "./cc_cursor";
 import { DripPipeline } from "../drip_pipeline";
 import z from "zod";
+import { streamMap } from "../cea/stream_algebra";
 
 function makeAggregation(
   db: Db,
@@ -71,13 +72,13 @@ export async function* dripCCRaw(
 ): AsyncGenerator<Buffer, Timestamp, void> {
   const c = makeAggregation(db, collNameOrCursor, pipeline, { raw: true });
 
-  for await (const buffer_ of c) {
+  yield* streamMap(c[Symbol.asyncIterator](), (buffer_) => {
     const unsafe = buffer_ as unknown as Buffer;
     // See https://mongodb.github.io/node-mongodb-native/6.13/interfaces/AggregateOptions.html#raw
     const safe = Buffer.alloc(unsafe.byteLength);
     safe.set(unsafe, 0);
-    yield safe;
-  }
+    return safe;
+  });
 
   return getClusterTime(db);
 }

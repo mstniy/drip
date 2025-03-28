@@ -55,6 +55,8 @@ export async function* runPersister(
       .toArray()
   )[0]?.resumeToken;
 
+  let lastResumeToken: unknown;
+
   const cs = watchCollection.watch(
     [
       {
@@ -74,53 +76,57 @@ export async function* runPersister(
     }
   );
 
-  let lastResumeToken: unknown;
+  try {
+    cs.on("resumeTokenChanged", (async (resumeToken) => {
+      // The Mongo node driver has a flaw for change stream where
+      // it calls resumeTokenChanged before actually reporting
+      // the change event to the user. Thus, naively
+      // relying on resumeTokenChanged to keep track of the
+      // resume token is racy. Hence, we delay persisting the
+      // received resume token by two microtasks.
+      // Two microtasks are enough because:
+      // - The next() loop below has one microtask
+      // delay between it receiving the change from next()
+      // and passing it along to insertOne()
+      // - The next() call also does not have any microtask
+      // delays between it emitting the resumeTokenChanged
+      // event and returning the change
+      // See https://github.com/mongodb/node-mongodb-native/blob/44bc5a880230a5be93afc9e2a4fa0a4586481edd/src/change_stream.ts#L746
+      await Promise.resolve();
+      await Promise.resolve();
+      const newResumeTokenData = z
+        .string()
+        .parse((resumeToken as Record<string, unknown>)["_data"]);
+      if (
+        newResumeTokenData !==
+        ((lastResumeToken as Record<string, unknown> | undefined) ?? {})[
+          "_data"
+        ]
+      ) {
+        const decoded = decodeResumeToken(newResumeTokenData);
+        const event = {
+          _id: new ObjectId(),
+          // mongodb-resumetoken-decoder and the actual driver use
+          // incompatible bson versions, so translate between
+          // the two
+          ct: Timestamp.fromBits(decoded.timestamp.low, decoded.timestamp.high),
+          o: "n",
+          w: new Date(),
+        } satisfies PCSNoopEvent;
+        await pushPCSEventUpdateMetadata(event, resumeToken);
+      }
+    }) as (rt: unknown) => void);
 
-  cs.on("resumeTokenChanged", (async (resumeToken) => {
-    // The Mongo node driver has a flaw for change stream where
-    // it calls resumeTokenChanged before actually reporting
-    // the change event to the user. Thus, naively
-    // relying on resumeTokenChanged to keep track of the
-    // resume token is racy. Hence, we delay persisting the
-    // received resume token by two microtasks.
-    // Two microtasks are enough because:
-    // - The next() loop below has one microtask
-    // delay between it receiving the change from next()
-    // and passing it along to insertOne()
-    // - The next() call also does not have any microtask
-    // delays between it emitting the resumeTokenChanged
-    // event and returning the change
-    // See https://github.com/mongodb/node-mongodb-native/blob/44bc5a880230a5be93afc9e2a4fa0a4586481edd/src/change_stream.ts#L746
-    await Promise.resolve();
-    await Promise.resolve();
-    const newResumeTokenData = z
-      .string()
-      .parse((resumeToken as Record<string, unknown>)["_data"]);
-    if (
-      newResumeTokenData !==
-      ((lastResumeToken as Record<string, unknown> | undefined) ?? {})["_data"]
-    ) {
-      const decoded = decodeResumeToken(newResumeTokenData);
-      const event = {
-        _id: new ObjectId(),
-        // mongodb-resumetoken-decoder and the actual driver use
-        // incompatible bson versions, so translate between
-        // the two
-        ct: Timestamp.fromBits(decoded.timestamp.low, decoded.timestamp.high),
-        o: "n",
-        w: new Date(),
-      } satisfies PCSNoopEvent;
-      await pushPCSEventUpdateMetadata(event, resumeToken);
+    while (true) {
+      yield;
+      const ce = await cs.next();
+      lastResumeToken = ce._id;
+      const pcse = changeEventToPCSEvent(ce);
+      if (typeof pcse !== "undefined") {
+        await pushPCSEventUpdateMetadata(pcse, ce._id);
+      }
     }
-  }) as (rt: unknown) => void);
-
-  while (true) {
-    yield;
-    const ce = await cs.next();
-    lastResumeToken = ce._id;
-    const pcse = changeEventToPCSEvent(ce);
-    if (typeof pcse !== "undefined") {
-      await pushPCSEventUpdateMetadata(pcse, ce._id);
-    }
+  } finally {
+    await cs.close();
   }
 }
