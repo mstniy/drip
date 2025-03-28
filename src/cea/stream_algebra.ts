@@ -12,45 +12,54 @@ export async function* streamSquashMerge<
 ): AsyncGenerator<AGYieldType<Generators[number]>, void, void> {
   type AYieldType = AGYieldType<Generators[number]>;
 
-  const ress = await Promise.all(
-    ss.map((s) => s.next() as Promise<IteratorResult<AYieldType, void>>)
-  );
-  while (true) {
-    let state: { idxs: undefined } | { idxs: number[]; smallest: AYieldType } =
-      {
+  try {
+    const ress = await Promise.all(
+      ss.map((s) => s.next() as Promise<IteratorResult<AYieldType, void>>)
+    );
+    while (true) {
+      let state:
+        | { idxs: undefined }
+        | { idxs: number[]; smallest: AYieldType } = {
         idxs: undefined,
       };
-    for (const [idx, res] of ress.entries()) {
-      if (res.done) continue;
-      if (typeof state.idxs === "undefined" || lt(res.value, state.smallest)) {
-        state = {
-          idxs: [idx],
-          smallest: res.value,
-        };
-      } else if (!lt(state.smallest, res.value)) {
-        state = {
-          idxs: [...state.idxs, idx],
-          smallest: state.smallest,
-        };
+      for (const [idx, res] of ress.entries()) {
+        if (res.done) continue;
+        if (
+          typeof state.idxs === "undefined" ||
+          lt(res.value, state.smallest)
+        ) {
+          state = {
+            idxs: [idx],
+            smallest: res.value,
+          };
+        } else if (!lt(state.smallest, res.value)) {
+          state = {
+            idxs: [...state.idxs, idx],
+            smallest: state.smallest,
+          };
+        }
+      }
+      if (typeof state.idxs === "undefined") {
+        // All streams are done
+        break;
+      }
+      // Yield the smallest element, giving priority
+      // to the instance coming from earlier streams
+      // if there are multiple minimums
+      yield state.smallest;
+      // Advance the relevant stream(s)
+      const news = await Promise.all(
+        state.idxs.map(
+          (idx) => ss[idx]!.next() as Promise<IteratorResult<AYieldType, void>>
+        )
+      );
+      for (const [i, idx] of state.idxs.entries()) {
+        ress[idx] = news[i]!;
       }
     }
-    if (typeof state.idxs === "undefined") {
-      // All streams are done
-      break;
-    }
-    // Yield the smallest element, giving priority
-    // to the instance coming from earlier streams
-    // if there are multiple minimums
-    yield state.smallest;
-    // Advance the relevant stream(s)
-    const news = await Promise.all(
-      state.idxs.map(
-        (idx) => ss[idx]!.next() as Promise<IteratorResult<AYieldType, void>>
-      )
-    );
-    for (const [i, idx] of state.idxs.entries()) {
-      ress[idx] = news[i]!;
-    }
+  } finally {
+    // Close the streams
+    await Promise.all(ss.map((s) => s.return()));
   }
 }
 
@@ -59,15 +68,24 @@ export async function* streamAppend<
 >(ss: Generators): AsyncGenerator<AGYieldType<Generators[number]>, void, void> {
   type AYieldType = AGYieldType<Generators[number]>;
 
-  for (const s of ss) {
-    yield* s as AsyncGenerator<AYieldType, void, void>;
+  try {
+    for (const s of ss) {
+      yield* s as AsyncGenerator<AYieldType, void, void>;
+    }
+  } finally {
+    // Close the streams
+    await Promise.all(ss.map((s) => s.return()));
   }
 }
 export async function* streamTake<T>(
   limit: number,
   s: AsyncGenerator<T, void, void>
 ): AsyncGenerator<T, void, void> {
-  if (limit == 0) return;
+  if (limit == 0) {
+    // Close the stream
+    await s.return();
+    return;
+  }
 
   let cnt = 0;
   for await (const elem of s) {

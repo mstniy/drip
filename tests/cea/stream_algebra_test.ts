@@ -60,6 +60,30 @@ describe("streamSquashMerge", () => {
     assert.equal(res.length, 1);
     assert(res[0] === a1); // and not a2
   });
+  it("closes the underlying streams", async () => {
+    let cleaned = false;
+    const ssm = streamSquashMerge(
+      [
+        // eslint-disable-next-line @typescript-eslint/require-await
+        (async function* () {
+          try {
+            yield 0;
+            yield 1;
+          } finally {
+            cleaned = true;
+          }
+        })(),
+      ],
+      (_a, _b) => {
+        throw new Error("Must never be called");
+      }
+    );
+
+    assert.equal((await ssm.next()).value, 0);
+    assert.equal(cleaned, false);
+    await ssm.return();
+    assert.equal(cleaned, true);
+  });
 });
 
 describe("streamAppend", () => {
@@ -100,6 +124,27 @@ describe("streamAppend", () => {
     assert.equal((await res.next()).value, 1);
     assert.deepStrictEqual([flag1, flag2], [1, 1]);
     assert((await res.next()).done);
+  });
+  it("closes the underlying streams", async () => {
+    let cleaned = false;
+    const s = // eslint-disable-next-line @typescript-eslint/require-await
+      (async function* () {
+        try {
+          yield 0;
+          yield 1;
+        } finally {
+          cleaned = true;
+        }
+      })();
+
+    assert.equal((await s.next()).value, 0);
+
+    const ssm = streamAppend([streamFrom([1, 2]), s]);
+
+    assert.equal((await ssm.next()).value, 1);
+    assert.equal(cleaned, false);
+    await ssm.return();
+    assert.equal(cleaned, true);
   });
 });
 
@@ -144,5 +189,26 @@ describe("streamTake", () => {
       ),
       [1, 2]
     );
+  });
+  it("closes the underlying stream", async () => {
+    let cleaned = false;
+    const s = // eslint-disable-next-line @typescript-eslint/require-await
+      (async function* () {
+        try {
+          yield 0;
+          yield 1;
+          yield 2;
+        } finally {
+          cleaned = true;
+        }
+      })();
+
+    assert.equal((await s.next()).value, 0);
+
+    const ssm = streamTake(0, s);
+
+    assert.equal(cleaned, false);
+    assert.equal((await ssm.next()).done, true);
+    assert.equal(cleaned, true);
   });
 });
