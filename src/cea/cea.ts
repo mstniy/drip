@@ -19,6 +19,7 @@ import { invertPipeline } from "./invert_ppl";
 import { parsePipeline } from "./parse_ppl/parse_pipeline";
 import { synthPipeline, synthStage } from "./parse_ppl/synth_pipeline";
 import { stripToGate } from "./strip_to_gate";
+import { CEAOptions } from "./options";
 
 function pcseLT(
   a: Pick<PCSEventCommon, "ct" | "_id">,
@@ -31,8 +32,13 @@ export async function* dripCEAStart(
   db: Db,
   collectionName: string,
   syncStart: Date,
-  pipeline: Readonly<DripPipeline>
+  pipeline: Readonly<DripPipeline>,
+  options?: CEAOptions
 ): AsyncGenerator<CSEvent, void, void> {
+  if (options?.rejectIfOlderThan && syncStart < options.rejectIfOlderThan) {
+    throw new CEACursorTooOldError();
+  }
+
   const coll = db.collection(derivePCSCollName(collectionName));
 
   const minRelevantCT = z
@@ -68,14 +74,19 @@ export async function* dripCEAStart(
       clusterTime: minRelevantCT.ct,
       id: minOID,
     },
-    pipeline
+    pipeline,
+    {
+      // We already enforce rejectIfOlderThan,
+      // no need to pass it through
+    }
   );
 }
 
 export async function* dripCEAResume(
   db: Db,
   cursor: CEACursor,
-  pipeline: Readonly<DripPipeline>
+  pipeline: Readonly<DripPipeline>,
+  options?: CEAOptions
 ): AsyncGenerator<CSEvent, void, void> {
   const pipelineParsed = parsePipeline(pipeline);
   const pipelineScopedToAfter = synthPipeline(scopeStages(pipelineParsed, "a"));
@@ -127,6 +138,30 @@ export async function* dripCEAResume(
 
   if (!cursor.clusterTime.lt(maxCT)) {
     return;
+  }
+
+  if (options?.rejectIfOlderThan) {
+    const riot = options.rejectIfOlderThan;
+    const cursorEventW = z
+      .array(
+        z.object({
+          w: z.instanceof(Date),
+        })
+      )
+      .parse(
+        await coll
+          .find({ _id: cursor.id }, { readConcern: ReadConcernLevel.majority })
+          .project({ _id: 0, w: 1 })
+          .toArray()
+      )[0]?.w;
+
+    if (!cursorEventW) {
+      throw new CEACursorNotFoundError();
+    }
+
+    if (cursorEventW < riot) {
+      throw new CEACursorTooOldError();
+    }
   }
 
   // As we use the tuple [clusterTime, id] as the sort order,
@@ -464,3 +499,5 @@ export async function* dripCEAResume(
 export class CEACannotResumeError extends Error {}
 
 export class CEACursorNotFoundError extends CEACannotResumeError {}
+
+export class CEACursorTooOldError extends CEACannotResumeError {}

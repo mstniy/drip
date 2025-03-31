@@ -15,12 +15,21 @@ import {
   PCSNoopEvent,
   PCSUpdateEvent,
 } from "../../src/cea/pcs_event";
-import { dripCEAResume, CEACursorNotFoundError } from "../../src/cea/cea";
+import {
+  dripCEAResume,
+  CEACursorNotFoundError,
+  CEACursorTooOldError,
+} from "../../src/cea/cea";
 import { minOID } from "../../src/cea/min_oid";
 import { genToArray } from "../test_utils/gen_to_array";
 import { openTestDB } from "../test_utils/open_test_db";
 import { getRandomString } from "../test_utils/random_string";
 import { derivePCSCollName } from "../../src/cea/derive_pcs_coll_name";
+import {
+  advanceDate,
+  incrementDate,
+  ONE_YEAR_MS,
+} from "../test_utils/date_utils";
 
 describe("dripCEAStart", () => {
   const collectionName = getRandomString();
@@ -98,7 +107,7 @@ describe("dripCEAStart", () => {
       dripCEAStart(
         db,
         collectionName,
-        new Date(events[2].w.setUTCFullYear(events[2].w.getUTCFullYear() + 1)),
+        advanceDate(events[2].w, ONE_YEAR_MS),
         []
       )
     );
@@ -111,9 +120,7 @@ describe("dripCEAStart", () => {
         dripCEAStart(
           db,
           collectionName,
-          new Date(
-            events[0].w.setUTCFullYear(events[0].w.getUTCFullYear() - 1)
-          ),
+          advanceDate(events[0].w, -ONE_YEAR_MS),
           []
         )
       );
@@ -127,6 +134,18 @@ describe("dripCEAStart", () => {
       dripCEAStart(db, "no_such_collection", new Date(), [])
     );
     assert(res.length === 0);
+  });
+  it("throws if syncstart is too old", async () => {
+    try {
+      await genToArray(
+        dripCEAStart(db, collectionName, events[2].w, [], {
+          rejectIfOlderThan: incrementDate(events[2].w),
+        })
+      );
+      assert(false, "Must have thrown");
+    } catch (e) {
+      assert(e instanceof CEACursorTooOldError);
+    }
   });
 });
 
@@ -290,6 +309,40 @@ describe("dripCEAResume", () => {
           assert(e instanceof CEACursorNotFoundError);
         }
       });
+    }
+  });
+  it("throws if the cursor is too old", async () => {
+    try {
+      await genToArray(
+        dripCEAResume(
+          db,
+          { clusterTime: events[9].ct, collectionName, id: events[9]._id },
+          [],
+          {
+            rejectIfOlderThan: incrementDate(events[9].w),
+          }
+        )
+      );
+      assert(false, "Must have thrown");
+    } catch (e) {
+      assert(e instanceof CEACursorTooOldError);
+    }
+  });
+  it("throws if rejectIfOlderThan is given bu the cursor does not exist", async () => {
+    try {
+      await genToArray(
+        dripCEAResume(
+          db,
+          { clusterTime: events[9].ct, collectionName, id: minOID },
+          [],
+          {
+            rejectIfOlderThan: new Date(),
+          }
+        )
+      );
+      assert(false, "Must have thrown");
+    } catch (e) {
+      assert(e instanceof CEACursorNotFoundError);
     }
   });
   it("starts at the given cursor", async () => {
