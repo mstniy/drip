@@ -183,6 +183,12 @@ export async function* dripCEAResume(
     },
   ];
 
+  const idcta = z.object({
+    _id: z.instanceof(ObjectId),
+    ct: z.instanceof(Timestamp),
+    a: z.record(z.string(), z.unknown()),
+  });
+
   const c1 = streamAppend(
     matchRelevantEvents.map((mre) =>
       coll
@@ -205,24 +211,19 @@ export async function* dripCEAResume(
           ],
           { readConcern: ReadConcernLevel.majority }
         )
-        .map((x) =>
-          z
-            .object({
-              _id: z.instanceof(ObjectId),
-              ct: z.instanceof(Timestamp),
-              a: z.record(z.string(), z.unknown()),
-            })
-            .parse(x)
-        )
         .map((x) => {
-          return {
-            op: "a" as const,
-            ...x,
-          };
+          return { op: "a" as const, ...idcta.parse(x) };
         })
         [Symbol.asyncIterator]()
     )
   );
+
+  const c2aschema = z.object({
+    _id: z.instanceof(ObjectId),
+    ct: z.instanceof(Timestamp),
+    u: z.record(z.string(), z.unknown()),
+    id: z.unknown(),
+  });
 
   const c2a = streamAppend(
     matchRelevantEvents.map((mre) =>
@@ -251,18 +252,8 @@ export async function* dripCEAResume(
           ],
           { readConcern: ReadConcernLevel.majority }
         )
-        .map((x) =>
-          z
-            .object({
-              _id: z.instanceof(ObjectId),
-              ct: z.instanceof(Timestamp),
-              u: z.record(z.string(), z.unknown()),
-              id: z.unknown(),
-            })
-            .parse(x)
-        )
         .map((x) => {
-          return { op: "u" as const, ...x };
+          return { op: "u" as const, ...c2aschema.parse(x) };
         })
         [Symbol.asyncIterator]()
     )
@@ -292,22 +283,19 @@ export async function* dripCEAResume(
             ],
             { readConcern: ReadConcernLevel.majority }
           )
-          .map((x) =>
-            z
-              .object({
-                _id: z.instanceof(ObjectId),
-                ct: z.instanceof(Timestamp),
-                a: z.record(z.string(), z.unknown()),
-              })
-              .parse(x)
-          )
           .map((x) => {
-            return { op: "a" as const, ...x };
+            return { op: "a" as const, ...idcta.parse(x) };
           })
           [Symbol.asyncIterator]()
       )
     )
   );
+
+  const c2cschema = z.object({
+    _id: z.instanceof(ObjectId),
+    ct: z.instanceof(Timestamp),
+    id: z.unknown(),
+  });
 
   const c2c = streamAppend(
     matchRelevantEvents.map((mre) =>
@@ -332,21 +320,18 @@ export async function* dripCEAResume(
           ],
           { readConcern: ReadConcernLevel.majority }
         )
-        .map((x) =>
-          z
-            .object({
-              _id: z.instanceof(ObjectId),
-              ct: z.instanceof(Timestamp),
-              id: z.unknown(),
-            })
-            .parse(x)
-        )
         .map((x) => {
-          return { op: "s" as const, ...x };
+          return { op: "s" as const, ...c2cschema.parse(x) };
         })
         [Symbol.asyncIterator]()
     )
   );
+
+  const c3schema = z.object({
+    _id: z.instanceof(ObjectId),
+    ct: z.instanceof(Timestamp),
+    id: z.unknown(),
+  });
 
   const c3 = streamAppend(
     matchRelevantEvents.map((mre) =>
@@ -371,20 +356,8 @@ export async function* dripCEAResume(
           ],
           { readConcern: ReadConcernLevel.majority }
         )
-        .map((x) =>
-          z
-            .object({
-              _id: z.instanceof(ObjectId),
-              ct: z.instanceof(Timestamp),
-              id: z.unknown(),
-            })
-            .parse(x)
-        )
         .map((x) => {
-          return {
-            ...x,
-            op: "s" as const,
-          };
+          return { op: "s" as const, ...c3schema.parse(x) };
         })
         [Symbol.asyncIterator]()
     )
@@ -446,6 +419,11 @@ export async function* dripCEAResume(
     }
   }
 
+  const nopschema = z.object({
+    _id: z.instanceof(ObjectId),
+    ct: z.instanceof(Timestamp),
+  });
+
   yield* streamTake(
     1,
     streamAppend(
@@ -472,14 +450,7 @@ export async function* dripCEAResume(
           .sort({ ct: -1 })
           .limit(1)
           .project({ ct: 1 })
-          .map((x) =>
-            z
-              .object({
-                _id: z.instanceof(ObjectId),
-                ct: z.instanceof(Timestamp),
-              })
-              .parse(x)
-          )
+          .map((x) => nopschema.parse(x))
           .map((x) => {
             return {
               operationType: "noop" as const,

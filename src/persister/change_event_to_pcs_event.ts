@@ -17,8 +17,8 @@ export function changeEventToPCSEvent(
       _id: new ObjectId(),
       o: "i",
       ct: z.instanceof(Timestamp).parse(ce.clusterTime),
-      k: z.record(z.string(), z.unknown()).parse(ce.documentKey),
-      a: z.record(z.string(), z.unknown()).parse(ce.fullDocument),
+      k: z.record(z.unknown()).parse(ce.documentKey),
+      a: z.record(z.unknown()).parse(ce.fullDocument),
     } satisfies PCSInsertionEvent;
     return res;
   } else if (ce.operationType === "update") {
@@ -27,9 +27,9 @@ export function changeEventToPCSEvent(
       _id: new ObjectId(),
       o: "u",
       ct: z.instanceof(Timestamp).parse(ce.clusterTime),
-      k: z.record(z.string(), z.unknown()).parse(ce.documentKey),
-      b: z.record(z.string(), z.unknown()).parse(ce.fullDocumentBeforeChange),
-      a: z.record(z.string(), z.unknown()).parse(ce.fullDocument),
+      k: z.record(z.unknown()).parse(ce.documentKey),
+      b: z.record(z.unknown()).parse(ce.fullDocumentBeforeChange),
+      a: z.record(z.unknown()).parse(ce.fullDocument),
       u: updateDescriptionToU(ce.updateDescription),
     } satisfies PCSUpdateEvent;
     return res;
@@ -38,8 +38,8 @@ export function changeEventToPCSEvent(
       _id: new ObjectId(),
       o: "d",
       ct: z.instanceof(Timestamp).parse(ce.clusterTime),
-      k: z.record(z.string(), z.unknown()).parse(ce.documentKey),
-      b: z.record(z.string(), z.unknown()).parse(ce.fullDocumentBeforeChange),
+      k: z.record(z.unknown()).parse(ce.documentKey),
+      b: z.record(z.unknown()).parse(ce.fullDocumentBeforeChange),
     } satisfies PCSDeletionEvent;
     return res;
   }
