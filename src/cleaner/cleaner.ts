@@ -44,22 +44,26 @@ export async function expirePCSEvents(
     .project({ _id: 1 })
     .map((o) => idZodSchema.parse(o));
 
-  while (await expiredEvents.hasNext()) {
-    const ids = expiredEvents.readBufferedDocuments();
-    // Right away schedule the next batch
-    void expiredEvents.hasNext();
+  try {
+    while (await expiredEvents.hasNext()) {
+      const ids = expiredEvents.readBufferedDocuments();
+      // Right away schedule the next batch
+      void expiredEvents.hasNext();
 
-    const bulkDelete = ids.map((id) => {
-      return {
-        deleteOne: {
-          filter: { _id: id._id },
-        },
-      };
-    });
+      const bulkDelete = ids.map((id) => {
+        return {
+          deleteOne: {
+            filter: { _id: id._id },
+          },
+        };
+      });
 
-    await pcsColl.bulkWrite(bulkDelete, {
-      ordered: true, // important - see above
-      writeConcern: { w: "majority" },
-    });
+      await pcsColl.bulkWrite(bulkDelete, {
+        ordered: true, // important - see above
+        writeConcern: { w: "majority" },
+      });
+    }
+  } finally {
+    await expiredEvents.close();
   }
 }
