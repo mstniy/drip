@@ -8,7 +8,7 @@
     "lint": "npx tsc --noEmit && npx eslint . && npx prettier . --check",
     "test": "node --import tsx --test $(find . -name \"*_test.ts\")",
     "coverage": "nyc npm run test",
-    "publish": "npx tsc --project tsconfig.npm.json && npm publish"
+    "prepare": "npx tsc --project tsconfig.npm.json"
   },
   "files": [
     "dist"
