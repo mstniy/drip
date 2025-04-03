@@ -6,7 +6,7 @@ import {
   CSAdditionEvent,
   CSNoopEvent,
 } from "./cs_event";
-import { DripPipeline } from "../drip_pipeline";
+import { DripPipeline, DripProcessingPipeline } from "../drip_pipeline";
 import z from "zod";
 import { CEACursor } from "./cea_cursor";
 import { streamAppend, streamSquashMerge, streamTake } from "./stream_algebra";
@@ -33,6 +33,7 @@ export async function* dripCEAStart(
   collectionName: string,
   syncStart: Date,
   pipeline: Readonly<DripPipeline>,
+  processingPipeline?: Readonly<DripProcessingPipeline>,
   options?: CEAOptions
 ): AsyncGenerator<CSEvent, void, void> {
   if (options?.rejectIfOlderThan && syncStart < options.rejectIfOlderThan) {
@@ -75,6 +76,7 @@ export async function* dripCEAStart(
       id: minOID,
     },
     pipeline,
+    processingPipeline,
     {
       // We already enforce rejectIfOlderThan,
       // no need to pass it through
@@ -86,10 +88,14 @@ export async function* dripCEAResume(
   db: Db,
   cursor: CEACursor,
   pipeline: Readonly<DripPipeline>,
+  processingPipeline?: Readonly<DripProcessingPipeline>,
   options?: CEAOptions
 ): AsyncGenerator<CSEvent, void, void> {
   const pipelineParsed = parsePipeline(pipeline);
   const pipelineScopedToAfter = synthPipeline(scopeStages(pipelineParsed, "a"));
+  const processingPipelineScopedToAfter = processingPipeline
+    ? synthPipeline(scopeStages(parsePipeline(processingPipeline), "a"))
+    : undefined;
   const pipelineScopedToBefore = scopeStages(stripToGate(pipelineParsed), "b");
   const pipelineScopedToBeforeSynthed = synthPipeline(pipelineScopedToBefore);
   const pipelineScopedToBeforeInverted = invertPipeline(
@@ -202,6 +208,7 @@ export async function* dripCEAResume(
                 _id: 1,
               },
             },
+            ...(processingPipelineScopedToAfter ?? []),
             {
               $project: {
                 ct: 1,
@@ -271,6 +278,7 @@ export async function* dripCEAResume(
                   _id: 1,
                 },
               },
+              ...(processingPipelineScopedToAfter ?? []),
               {
                 $project: {
                   ct: 1,

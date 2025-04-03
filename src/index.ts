@@ -5,5 +5,5 @@ export { type CEACursor } from "./cea/cea_cursor";
 export { type CCCursor } from "./cc/cc_cursor";
 export * from "./cea/cs_event";
 export { type CEAOptions } from "./cea/options";
-export type { DripPipeline, DripPipelineStage } from "./drip_pipeline";
+export * from "./drip_pipeline";
 export { runPersister } from "./persister/persister";

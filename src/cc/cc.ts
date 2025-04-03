@@ -8,13 +8,14 @@ import {
   Timestamp,
 } from "mongodb";
 import { CCCursor } from "./cc_cursor";
-import { DripPipeline } from "../drip_pipeline";
+import { DripPipeline, DripProcessingPipeline } from "../drip_pipeline";
 import z from "zod";
 
 function makeAggregation(
   db: Db,
   collNameOrCursor: string | CCCursor,
   pipeline: Readonly<DripPipeline>,
+  processingPipeline: Readonly<DripPipeline> | undefined,
   options?: AggregateOptions & Abortable
 ): AggregationCursor<Document> {
   const collectionName =
@@ -31,6 +32,7 @@ function makeAggregation(
           : [{ $match: { _id: { $gt: collNameOrCursor.id } } }]),
         ...pipeline,
         { $sort: { _id: 1 } },
+        ...(processingPipeline ?? []),
       ],
       { ...options, readConcern: ReadConcernLevel.majority }
     );
@@ -55,9 +57,10 @@ async function getClusterTime(db: Db) {
 export async function* dripCC(
   db: Db,
   collNameOrCursor: string | CCCursor,
-  pipeline: Readonly<DripPipeline>
+  pipeline: Readonly<DripPipeline>,
+  processingPipeline?: Readonly<DripProcessingPipeline>
 ): AsyncGenerator<Document, Timestamp, void> {
-  const c = makeAggregation(db, collNameOrCursor, pipeline);
+  const c = makeAggregation(db, collNameOrCursor, pipeline, processingPipeline);
 
   yield* c;
 
@@ -67,9 +70,16 @@ export async function* dripCC(
 export async function* dripCCRaw(
   db: Db,
   collNameOrCursor: string | CCCursor,
-  pipeline: Readonly<DripPipeline>
+  pipeline: Readonly<DripPipeline>,
+  processingPipeline?: Readonly<DripProcessingPipeline>
 ): AsyncGenerator<Buffer, Timestamp, void> {
-  const c = makeAggregation(db, collNameOrCursor, pipeline, { raw: true });
+  const c = makeAggregation(
+    db,
+    collNameOrCursor,
+    pipeline,
+    processingPipeline,
+    { raw: true }
+  );
 
   for await (const buffer_ of c) {
     const unsafe = buffer_ as unknown as Buffer;

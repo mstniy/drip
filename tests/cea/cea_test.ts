@@ -138,7 +138,7 @@ describe("dripCEAStart", () => {
   it("throws if syncstart is too old", async () => {
     try {
       await genToArray(
-        dripCEAStart(db, collectionName, events[2].w, [], {
+        dripCEAStart(db, collectionName, events[2].w, [], undefined, {
           rejectIfOlderThan: incrementDate(events[2].w),
         })
       );
@@ -318,6 +318,7 @@ describe("dripCEAResume", () => {
           db,
           { clusterTime: events[9].ct, collectionName, id: events[9]._id },
           [],
+          undefined,
           {
             rejectIfOlderThan: incrementDate(events[9].w),
           }
@@ -335,6 +336,7 @@ describe("dripCEAResume", () => {
           db,
           { clusterTime: events[9].ct, collectionName, id: minOID },
           [],
+          undefined,
           {
             rejectIfOlderThan: new Date(),
           }
@@ -387,7 +389,8 @@ describe("dripCEAResume", () => {
           collectionName,
           id: minOID,
         },
-        [{ $match: { a: 0 } }]
+        [{ $match: { a: 0 } }],
+        [{ $addFields: { hey: 0 } }]
       )
     );
 
@@ -399,7 +402,7 @@ describe("dripCEAResume", () => {
           collectionName,
           id: events[1]._id,
         },
-        fullDocument: { ...events[1].a, _id: events[1].a._id },
+        fullDocument: { ...events[1].a, _id: events[1].a._id, hey: 0 },
         operationType: "addition",
       } satisfies CSAdditionEvent,
       // events[2] is omitted: irrelevant insertion
@@ -442,7 +445,7 @@ describe("dripCEAResume", () => {
           collectionName,
           id: events[7]._id,
         },
-        fullDocument: { ...events[7].a, _id: events[7].a._id },
+        fullDocument: { ...events[7].a, _id: events[7].a._id, hey: 0 },
         operationType: "addition",
       } satisfies CSAdditionEvent,
       // events[8] is omitted: it is an update to an irrelevant object, which is still irrelevant
