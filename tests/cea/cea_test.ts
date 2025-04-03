@@ -387,7 +387,7 @@ describe("dripCEAResume", () => {
           collectionName,
           id: minOID,
         },
-        [{ $addFields: { _id: { a: 0, id: "$_id" } } }, { $match: { a: 0 } }]
+        [{ $match: { a: 0 } }]
       )
     );
 
@@ -399,7 +399,7 @@ describe("dripCEAResume", () => {
           collectionName,
           id: events[1]._id,
         },
-        fullDocument: { ...events[1].a, _id: { a: 0, id: events[1].a._id } },
+        fullDocument: { ...events[1].a, _id: events[1].a._id },
         operationType: "addition",
       } satisfies CSAdditionEvent,
       // events[2] is omitted: irrelevant insertion
@@ -442,7 +442,7 @@ describe("dripCEAResume", () => {
           collectionName,
           id: events[7]._id,
         },
-        fullDocument: { ...events[7].a, _id: { a: 0, id: events[7].a._id } },
+        fullDocument: { ...events[7].a, _id: events[7].a._id },
         operationType: "addition",
       } satisfies CSAdditionEvent,
       // events[8] is omitted: it is an update to an irrelevant object, which is still irrelevant

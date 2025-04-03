@@ -231,9 +231,6 @@ export async function* dripCEAResume(
         .aggregate(
           [
             { $match: { ...mre, o: "u" } },
-            // Take a backup before running the given stages,
-            // as they might modify the id field.
-            { $addFields: { id: "$b._id" } },
             ...pipelineScopedToAfter,
             ...pipelineScopedToBeforeSynthed,
             {
@@ -246,7 +243,7 @@ export async function* dripCEAResume(
               $project: {
                 ct: 1,
                 u: 1,
-                id: 1,
+                id: "$b._id",
               },
             },
           ],
@@ -303,7 +300,6 @@ export async function* dripCEAResume(
         .aggregate(
           [
             { $match: { ...mre, o: "u" } },
-            { $addFields: { id: "$b._id" } },
             ...pipelineScopedToBeforeSynthed,
             {
               $sort: {
@@ -314,7 +310,7 @@ export async function* dripCEAResume(
             {
               $project: {
                 ct: 1,
-                id: 1,
+                id: "$b._id",
               },
             },
           ],
@@ -339,7 +335,6 @@ export async function* dripCEAResume(
         .aggregate(
           [
             { $match: { ...mre, o: "d" } },
-            { $addFields: { id: "$b._id" } },
             ...pipelineScopedToBeforeSynthed,
             {
               $sort: {
@@ -350,7 +345,7 @@ export async function* dripCEAResume(
             {
               $project: {
                 ct: 1,
-                id: 1,
+                id: "$b._id",
               },
             },
           ],
