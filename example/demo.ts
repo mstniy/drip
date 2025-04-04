@@ -2,7 +2,6 @@ import { MongoClient, ObjectId } from "mongodb";
 import {
   CEACursor,
   CSEvent,
-  dripCC,
   dripCEAResume,
   dripCEAStart,
   applyUpdateDescription,
@@ -10,6 +9,7 @@ import {
 import z from "zod";
 import { collName, dbName, mongoURL } from "./constants";
 import { strict as assert } from "assert";
+import { dripCCStart } from "../src/cc/cc";
 
 async function genToArray<T, R>(
   gen: AsyncGenerator<T, R, void>
@@ -42,15 +42,14 @@ async function* sync() {
 
   const pipeline = [{ $match: { userId: "me" } }];
 
-  // 5 seconds of buffer
-  const syncStart = new Date(Date.now() - 5 * 1000);
-
   const client = new MongoClient(mongoURL);
   const db = client.db(dbName);
 
   console.log("Starting collection copy...");
 
-  const ccRes = await genToArray(dripCC(db, collName, undefined, pipeline));
+  const { ccStart, gen: ccGen } = await dripCCStart(db, collName, pipeline);
+
+  const ccRes = await genToArray(ccGen);
 
   const ccEnd = ccRes[1];
 
@@ -101,7 +100,7 @@ async function* sync() {
   while (true) {
     let gotMeaningfulChange = false;
     for await (const c of typeof ceaCursor === "undefined"
-      ? dripCEAStart(db, collName, syncStart, pipeline)
+      ? dripCEAStart(db, collName, ccStart, pipeline)
       : dripCEAResume(db, collName, ceaCursor, pipeline)) {
       if (c.operationType !== "noop") {
         gotMeaningfulChange = true;

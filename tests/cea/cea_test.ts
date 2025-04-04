@@ -25,11 +25,7 @@ import { genToArray } from "../test_utils/gen_to_array";
 import { openTestDB } from "../test_utils/open_test_db";
 import { getRandomString } from "../test_utils/random_string";
 import { derivePCSCollName } from "../../src/cea/derive_pcs_coll_name";
-import {
-  advanceDate,
-  incrementDate,
-  ONE_YEAR_MS,
-} from "../test_utils/date_utils";
+import { incrementDate } from "../test_utils/date_utils";
 
 describe("dripCEAStart", () => {
   const collectionName = getRandomString();
@@ -86,7 +82,7 @@ describe("dripCEAStart", () => {
   after(() => client.close());
   it("ignores too old events", async () => {
     const res = await genToArray(
-      dripCEAStart(db, collectionName, events[2].w, [])
+      dripCEAStart(db, collectionName, events[3].ct, [])
     );
 
     assert.deepStrictEqual(res, [
@@ -103,12 +99,7 @@ describe("dripCEAStart", () => {
 
   it("returns no results if given time is too recent", async () => {
     const res = await genToArray(
-      dripCEAStart(
-        db,
-        collectionName,
-        advanceDate(events[2].w, ONE_YEAR_MS),
-        []
-      )
+      dripCEAStart(db, collectionName, new Timestamp(events[4].ct.add(1)), [])
     );
     assert.equal(res.length, 0);
   });
@@ -119,7 +110,7 @@ describe("dripCEAStart", () => {
         dripCEAStart(
           db,
           collectionName,
-          advanceDate(events[0].w, -ONE_YEAR_MS),
+          new Timestamp(events[0].ct.add(-1)),
           []
         )
       );
@@ -130,21 +121,9 @@ describe("dripCEAStart", () => {
   });
   it("yields nothing if there are no persisted events", async () => {
     const res = await genToArray(
-      dripCEAStart(db, "no_such_collection", new Date(), [])
+      dripCEAStart(db, "no_such_collection", new Timestamp({ t: 0, i: 0 }), [])
     );
     assert(res.length === 0);
-  });
-  it("throws if syncstart is too old", async () => {
-    try {
-      await genToArray(
-        dripCEAStart(db, collectionName, events[2].w, [], undefined, {
-          rejectIfOlderThan: incrementDate(events[2].w),
-        })
-      );
-      assert(false, "Must have thrown");
-    } catch (e) {
-      assert(e instanceof CEACursorTooOldError);
-    }
   });
 });
 

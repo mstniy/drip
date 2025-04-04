@@ -28,59 +28,24 @@ function pcseLT(
   return a.ct.lt(b.ct) || (a.ct.eq(b.ct) && oidLT(a._id, b._id));
 }
 
-export async function* dripCEAStart(
+export function dripCEAStart(
   db: Db,
   collectionName: string,
-  syncStart: Date,
+  ccStart: Timestamp,
   pipeline: Readonly<DripPipeline>,
   processingPipeline?: Readonly<DripProcessingPipeline>,
   options?: CEAOptions
 ): AsyncGenerator<CSEvent, void, void> {
-  if (options?.rejectIfOlderThan && syncStart < options.rejectIfOlderThan) {
-    throw new CEACursorTooOldError();
-  }
-
-  const coll = db.collection(derivePCSCollName(collectionName));
-
-  const minRelevantCT = z
-    .array(
-      z.object({
-        ct: z.instanceof(Timestamp),
-        w: z.date(),
-      })
-    )
-    .parse(
-      await coll
-        .find(
-          {
-            o: "n",
-            w: { $gte: syncStart },
-          },
-          { readConcern: ReadConcernLevel.majority }
-        )
-        .project({ _id: 0, ct: 1, w: 1 })
-        .limit(1)
-        .toArray()
-    )[0];
-
-  if (typeof minRelevantCT === "undefined") {
-    // No change events matching the syncStart filter
-    return;
-  }
-
-  yield* dripCEAResume(
+  return dripCEAResume(
     db,
     collectionName,
     {
-      clusterTime: minRelevantCT.ct,
+      clusterTime: ccStart,
       id: minOID,
     },
     pipeline,
     processingPipeline,
-    {
-      // We already enforce rejectIfOlderThan,
-      // no need to pass it through
-    }
+    options
   );
 }
 

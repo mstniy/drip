@@ -60,7 +60,7 @@ export async function expirePCSEvents(
 
       await pcsColl.bulkWrite(bulkDelete, {
         ordered: true, // important - see above
-        writeConcern: { w: "majority" },
+        writeConcern: { w: ReadConcernLevel.majority },
       });
     }
   } finally {
