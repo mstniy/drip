@@ -34,6 +34,7 @@ describe("persister", () => {
     const persister = runPersister(db.collection(collectionName), db);
     while (true) {
       await persister.next();
+      await new Promise((res) => setTimeout(res, 50));
     }
   }
 
