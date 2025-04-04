@@ -50,7 +50,7 @@ async function* sync() {
 
   console.log("Starting collection copy...");
 
-  const ccRes = await genToArray(dripCC(db, collName, pipeline));
+  const ccRes = await genToArray(dripCC(db, collName, undefined, pipeline));
 
   const ccEnd = ccRes[1];
 
@@ -102,7 +102,7 @@ async function* sync() {
     let gotMeaningfulChange = false;
     for await (const c of typeof ceaCursor === "undefined"
       ? dripCEAStart(db, collName, syncStart, pipeline)
-      : dripCEAResume(db, ceaCursor, pipeline)) {
+      : dripCEAResume(db, collName, ceaCursor, pipeline)) {
       if (c.operationType !== "noop") {
         gotMeaningfulChange = true;
       }

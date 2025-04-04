@@ -35,7 +35,7 @@ describe("dripCC", () => {
   after(() => client.close());
   it("works without a cursor", async () => {
     const res = await genToArray(
-      dripCC(db, collectionName, [{ $match: { a: 0 } }])
+      dripCC(db, collectionName, undefined, [{ $match: { a: 0 } }])
     );
 
     assert.deepStrictEqual(res, [
@@ -52,7 +52,7 @@ describe("dripCC", () => {
   });
   it("works with a cursor", async () => {
     const res = await genToArray(
-      dripCC(db, { collectionName, id: 0 }, [{ $match: { a: 0 } }])
+      dripCC(db, collectionName, { id: 0 }, [{ $match: { a: 0 } }])
     );
 
     assert.deepStrictEqual(res, [
@@ -66,7 +66,9 @@ describe("dripCC", () => {
   describe("dripCCRaw", () => {
     it("works without a cursor", async () => {
       const res = (
-        await genToArray(dripCCRaw(db, collectionName, [{ $match: { a: 0 } }]))
+        await genToArray(
+          dripCCRaw(db, collectionName, undefined, [{ $match: { a: 0 } }])
+        )
       ).map((x) => BSON.deserialize(new Uint8Array(x.buffer)));
 
       assert.deepStrictEqual(res, [
@@ -84,7 +86,7 @@ describe("dripCC", () => {
     it("works with a cursor", async () => {
       const res = (
         await genToArray(
-          dripCCRaw(db, { collectionName, id: 0 }, [{ $match: { a: 0 } }])
+          dripCCRaw(db, collectionName, { id: 0 }, [{ $match: { a: 0 } }])
         )
       ).map((x) => BSON.deserialize(new Uint8Array(x.buffer)));
 

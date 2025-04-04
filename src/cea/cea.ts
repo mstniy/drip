@@ -70,8 +70,8 @@ export async function* dripCEAStart(
 
   yield* dripCEAResume(
     db,
+    collectionName,
     {
-      collectionName,
       clusterTime: minRelevantCT.ct,
       id: minOID,
     },
@@ -86,6 +86,7 @@ export async function* dripCEAStart(
 
 export async function* dripCEAResume(
   db: Db,
+  collectionName: string,
   cursor: CEACursor,
   pipeline: Readonly<DripPipeline>,
   processingPipeline?: Readonly<DripProcessingPipeline>,
@@ -101,7 +102,7 @@ export async function* dripCEAResume(
   const pipelineScopedToBeforeInverted = invertPipeline(
     pipelineScopedToBefore
   ).map((ppl) => ppl.map(synthStage));
-  const coll = db.collection(derivePCSCollName(cursor.collectionName));
+  const coll = db.collection(derivePCSCollName(collectionName));
 
   const minCT = z
     .array(
@@ -392,7 +393,6 @@ export async function* dripCEAResume(
         operationType: "update",
         updateDescription: cse.u,
         cursor: {
-          collectionName: cursor.collectionName,
           clusterTime: cse.ct,
           id: cse._id,
         },
@@ -403,7 +403,6 @@ export async function* dripCEAResume(
         operationType: "addition",
         fullDocument: cse.a,
         cursor: {
-          collectionName: cursor.collectionName,
           clusterTime: cse.ct,
           id: cse._id,
         },
@@ -413,7 +412,6 @@ export async function* dripCEAResume(
       yield {
         operationType: "subtraction",
         cursor: {
-          collectionName: cursor.collectionName,
           clusterTime: cse.ct,
           id: cse._id,
         },
@@ -458,7 +456,6 @@ export async function* dripCEAResume(
             return {
               operationType: "noop" as const,
               cursor: {
-                collectionName: cursor.collectionName,
                 clusterTime: x.ct,
                 id: x._id,
               },

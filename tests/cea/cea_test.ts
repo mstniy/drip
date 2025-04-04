@@ -94,7 +94,6 @@ describe("dripCEAStart", () => {
         cursor: {
           clusterTime: events[3].ct,
           id: events[3]._id,
-          collectionName,
         },
         fullDocument: events[3].a,
         operationType: "addition",
@@ -262,9 +261,9 @@ describe("dripCEAResume", () => {
     const res = await genToArray(
       dripCEAResume(
         db,
+        "no_such_collection",
         {
           clusterTime: new Timestamp({ t: 1000, i: 0 }),
-          collectionName: "no_such_collection",
           id: minOID,
         },
         []
@@ -276,9 +275,9 @@ describe("dripCEAResume", () => {
     const res = await genToArray(
       dripCEAResume(
         db,
+        collectionName,
         {
           clusterTime: new Timestamp({ t: events[12].ct.t + 1, i: 0 }),
-          collectionName,
           id: minOID,
         },
         []
@@ -296,9 +295,9 @@ describe("dripCEAResume", () => {
           await genToArray(
             dripCEAResume(
               db,
+              collectionName,
               {
                 clusterTime: ct,
-                collectionName,
                 id: minOID,
               },
               []
@@ -316,7 +315,8 @@ describe("dripCEAResume", () => {
       await genToArray(
         dripCEAResume(
           db,
-          { clusterTime: events[9].ct, collectionName, id: events[9]._id },
+          collectionName,
+          { clusterTime: events[9].ct, id: events[9]._id },
           [],
           undefined,
           {
@@ -334,7 +334,8 @@ describe("dripCEAResume", () => {
       await genToArray(
         dripCEAResume(
           db,
-          { clusterTime: events[9].ct, collectionName, id: minOID },
+          collectionName,
+          { clusterTime: events[9].ct, id: minOID },
           [],
           undefined,
           {
@@ -351,9 +352,9 @@ describe("dripCEAResume", () => {
     const res = await genToArray(
       dripCEAResume(
         db,
+        collectionName,
         {
           clusterTime: events[7].ct,
-          collectionName,
           id: events[7]._id,
         },
         []
@@ -363,7 +364,6 @@ describe("dripCEAResume", () => {
       {
         cursor: {
           clusterTime: events[8].ct,
-          collectionName,
           id: events[8]._id,
         },
         updateDescription: events[8].u,
@@ -373,7 +373,6 @@ describe("dripCEAResume", () => {
       {
         cursor: {
           clusterTime: events[10].ct,
-          collectionName,
           id: events[10]._id,
         },
         operationType: "noop",
@@ -384,9 +383,9 @@ describe("dripCEAResume", () => {
     const res = await genToArray(
       dripCEAResume(
         db,
+        collectionName,
         {
           clusterTime: events[1].ct,
-          collectionName,
           id: minOID,
         },
         [{ $match: { a: 0 } }],
@@ -399,7 +398,6 @@ describe("dripCEAResume", () => {
       {
         cursor: {
           clusterTime: events[1].ct,
-          collectionName,
           id: events[1]._id,
         },
         fullDocument: { ...events[1].a, _id: events[1].a._id, hey: 0 },
@@ -410,7 +408,6 @@ describe("dripCEAResume", () => {
       {
         cursor: {
           clusterTime: events[3].ct,
-          collectionName,
           id: events[3]._id,
         },
         id: events[3].b._id,
@@ -421,7 +418,6 @@ describe("dripCEAResume", () => {
       {
         cursor: {
           clusterTime: events[5].ct,
-          collectionName,
           id: events[5]._id,
         },
         updateDescription: events[5].u,
@@ -432,7 +428,6 @@ describe("dripCEAResume", () => {
       {
         cursor: {
           clusterTime: events[6].ct,
-          collectionName,
           id: events[6]._id,
         },
         id: events[6].b._id,
@@ -442,7 +437,6 @@ describe("dripCEAResume", () => {
       {
         cursor: {
           clusterTime: events[7].ct,
-          collectionName,
           id: events[7]._id,
         },
         fullDocument: { ...events[7].a, _id: events[7].a._id, hey: 0 },
@@ -453,7 +447,6 @@ describe("dripCEAResume", () => {
       {
         cursor: {
           clusterTime: events[10].ct,
-          collectionName,
           id: events[10]._id,
         },
         operationType: "noop",
@@ -466,9 +459,9 @@ describe("dripCEAResume", () => {
       const res = await genToArray(
         dripCEAResume(
           db,
+          collectionName,
           {
             clusterTime: events[8].ct,
-            collectionName,
             id: events[8]._id,
           },
           []
@@ -479,7 +472,6 @@ describe("dripCEAResume", () => {
         {
           cursor: {
             clusterTime: events[10].ct,
-            collectionName,
             id: events[10]._id,
           },
           operationType: "noop",
@@ -527,9 +519,9 @@ describe("dripCEAResume", () => {
       const res = await genToArray(
         dripCEAResume(
           db,
+          collectionName,
           {
             clusterTime: events[1].ct,
-            collectionName,
             id: events[1]._id,
           },
           []
@@ -540,7 +532,6 @@ describe("dripCEAResume", () => {
         {
           cursor: {
             clusterTime: events[3].ct,
-            collectionName,
             id: events[3]._id,
           },
           fullDocument: events[3].a,

@@ -13,23 +13,17 @@ import z from "zod";
 
 function makeAggregation(
   db: Db,
-  collNameOrCursor: string | CCCursor,
+  collectionName: string,
+  cursor: CCCursor | undefined,
   pipeline: Readonly<DripPipeline>,
   processingPipeline: Readonly<DripPipeline> | undefined,
   options?: AggregateOptions & Abortable
 ): AggregationCursor<Document> {
-  const collectionName =
-    typeof collNameOrCursor === "string"
-      ? collNameOrCursor
-      : collNameOrCursor.collectionName;
-
   const c = db
     .collection(collectionName)
     .aggregate(
       [
-        ...(typeof collNameOrCursor === "string"
-          ? []
-          : [{ $match: { _id: { $gt: collNameOrCursor.id } } }]),
+        ...(cursor ? [{ $match: { _id: { $gt: cursor.id } } }] : []),
         ...pipeline,
         { $sort: { _id: 1 } },
         ...(processingPipeline ?? []),
@@ -56,11 +50,18 @@ async function getClusterTime(db: Db) {
 
 export async function* dripCC(
   db: Db,
-  collNameOrCursor: string | CCCursor,
+  collectionName: string,
+  cursor: CCCursor | undefined,
   pipeline: Readonly<DripPipeline>,
   processingPipeline?: Readonly<DripProcessingPipeline>
 ): AsyncGenerator<Document, Timestamp, void> {
-  const c = makeAggregation(db, collNameOrCursor, pipeline, processingPipeline);
+  const c = makeAggregation(
+    db,
+    collectionName,
+    cursor,
+    pipeline,
+    processingPipeline
+  );
 
   yield* c;
 
@@ -69,13 +70,15 @@ export async function* dripCC(
 
 export async function* dripCCRaw(
   db: Db,
-  collNameOrCursor: string | CCCursor,
+  collectionName: string,
+  cursor: CCCursor | undefined,
   pipeline: Readonly<DripPipeline>,
   processingPipeline?: Readonly<DripProcessingPipeline>
 ): AsyncGenerator<Buffer, Timestamp, void> {
   const c = makeAggregation(
     db,
-    collNameOrCursor,
+    collectionName,
+    cursor,
     pipeline,
     processingPipeline,
     { raw: true }
