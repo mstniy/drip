@@ -8,7 +8,6 @@ import {
 } from "../src";
 import z from "zod";
 import { collName, dbName, mongoURL } from "./constants";
-import { strict as assert } from "assert";
 import { dripCCStart } from "../src/cc/cc";
 
 async function genToArray<T, R>(
