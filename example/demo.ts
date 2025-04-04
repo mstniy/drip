@@ -77,10 +77,14 @@ async function* sync() {
         const update = c.updateDescription;
         const id = z.instanceof(ObjectId).parse(c.id);
         const old = subset[id.toHexString()];
-        assert(old);
-        subset[id.toHexString()] = zodTodo.parse(
-          applyUpdateDescription(old, update)
-        );
+        // We might get an update for a non-existent document
+        // if one gets updated and subsequently deleted during
+        // or shortly before collection copy.
+        if (old) {
+          subset[id.toHexString()] = zodTodo.parse(
+            applyUpdateDescription(old, update)
+          );
+        }
         break;
       }
       case "noop":
