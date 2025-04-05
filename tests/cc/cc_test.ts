@@ -78,9 +78,7 @@ describe("dripCCRawStart", () => {
     const { gen } = await dripCCRawStart(db, collectionName, [
       { $match: { a: 0 } },
     ]);
-    const res = (await genToArray(gen)).map((x) =>
-      BSON.deserialize(new Uint8Array(x.buffer))
-    );
+    const res = (await genToArray(gen)).map((x) => BSON.deserialize(x));
 
     assert.deepStrictEqual(res, [
       {
@@ -101,7 +99,7 @@ describe("dripCCRawResume", () => {
       await genToArray(
         dripCCRawResume(db, collectionName, { id: 0 }, [{ $match: { a: 0 } }])
       )
-    ).map((x) => BSON.deserialize(new Uint8Array(x.buffer)));
+    ).map((x) => BSON.deserialize(x));
 
     assert.deepStrictEqual(res, [
       { _id: 2, a: 0 },

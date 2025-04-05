@@ -113,14 +113,18 @@ async function* cc_raw(
     pipeline,
     processingPipeline,
     { raw: true }
-  );
+  )[Symbol.asyncIterator]();
 
-  for await (const buffer_ of c) {
-    const unsafe = buffer_ as unknown as Buffer;
-    // See https://mongodb.github.io/node-mongodb-native/6.13/interfaces/AggregateOptions.html#raw
-    const safe = Buffer.alloc(unsafe.byteLength);
-    safe.set(unsafe, 0);
-    yield safe;
+  try {
+    let next = c.next();
+    while (true) {
+      const res = await next;
+      if (res.done) break;
+      next = c.next();
+      yield res.value as unknown as Buffer;
+    }
+  } finally {
+    await c.return();
   }
 
   // See [cc].
