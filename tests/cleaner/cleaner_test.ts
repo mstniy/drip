@@ -71,7 +71,8 @@ describe("cleaner", () => {
   it("does nothing if there are no affected events", async () => {
     await expirePCSEvents(
       collectionName,
-      db,
+      client,
+      db.databaseName,
       advanceDate(events[0].w, -ONE_YEAR_MS)
     );
     assert.deepStrictEqual(
@@ -80,7 +81,7 @@ describe("cleaner", () => {
     );
   });
   it("deletes the affected events", async () => {
-    await expirePCSEvents(collectionName, db, events[4].w);
+    await expirePCSEvents(collectionName, client, db.databaseName, events[4].w);
     assert.deepStrictEqual(
       (await pcsCollection.find().sort({ ct: 1 }).toArray()).map((o) => o._id),
       events.slice(3).map((o) => o._id)
