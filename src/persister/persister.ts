@@ -1,4 +1,10 @@
-import { Collection, Db, ObjectId, ReadConcernLevel, Timestamp } from "mongodb";
+import {
+  Collection,
+  MongoClient,
+  ObjectId,
+  ReadConcernLevel,
+  Timestamp,
+} from "mongodb";
 import { derivePCSCollName } from "../cea/derive_pcs_coll_name";
 import { changeEventToPCSEvent } from "./change_event_to_pcs_event";
 import {
@@ -10,34 +16,47 @@ import { PromiseTrain } from "./promise_train";
 import { PCSEventCommon, PCSNoopEvent } from "../cea/pcs_event";
 import { decodeResumeToken } from "mongodb-resumetoken-decoder";
 import z from "zod";
+import { FlushBuffer } from "./flush_buffer";
 
 export async function* runPersister(
-  watchCollection: Collection,
-  metadataDb: Db
+  metadataClient: MongoClient,
+  metadataDbName: string,
+  watchCollection: Collection
 ): AsyncGenerator<void, void, void> {
   const collectionName = watchCollection.collectionName;
   const promiseTrain = new PromiseTrain();
+  const metadataDb = metadataClient.db(metadataDbName);
   const pcsColl = metadataDb.collection(derivePCSCollName(collectionName));
   const metadataColl = metadataDb.collection<DripMetadata>(
     MetadataCollectionName
   );
 
-  async function pushPCSEventUpdateMetadata(
-    pcse: PCSEventCommon,
+  async function pushPCSEventsUpdateMetadata(
+    events: PCSEventCommon[],
     resumeToken: unknown
   ) {
     await promiseTrain.push(() =>
-      pcsColl.insertOne(pcse, { writeConcern: { w: "majority" } })
-    );
-    await promiseTrain.push(() =>
-      metadataColl.findOneAndUpdate(
-        { _id: collectionName },
-        { $set: { resumeToken: resumeToken } },
-        {
-          upsert: true,
-          readConcern: ReadConcernLevel.majority,
-          writeConcern: { w: "majority" },
-        }
+      metadataClient.withSession((session) =>
+        session.withTransaction(
+          async (session) => {
+            await pcsColl.insertMany(events, {
+              ordered: true,
+              session,
+            });
+            await metadataColl.findOneAndUpdate(
+              { _id: collectionName },
+              { $set: { resumeToken: resumeToken } },
+              {
+                upsert: true,
+                session,
+              }
+            );
+          },
+          {
+            readConcern: ReadConcernLevel.majority,
+            writeConcern: { w: "majority" },
+          }
+        )
       )
     );
   }
@@ -55,7 +74,13 @@ export async function* runPersister(
       .toArray()
   )[0]?.resumeToken;
 
+  const MAX_BUFFER_LENGTH = 1000;
+
   let lastResumeToken: unknown;
+  const flushBuffer = new FlushBuffer<PCSEventCommon>(
+    MAX_BUFFER_LENGTH,
+    (events) => pushPCSEventsUpdateMetadata(events, lastResumeToken)
+  );
 
   const cs = watchCollection.watch(
     [
@@ -85,12 +110,12 @@ export async function* runPersister(
       // resume token is racy. Hence, we delay persisting the
       // received resume token by two microtasks.
       // Two microtasks are enough because:
-      // - The next() loop below has one microtask
+      // - The loop on the change stream has one microtask
       // delay between it receiving the change from next()
-      // and passing it along to insertOne()
-      // - The next() call also does not have any microtask
-      // delays between it emitting the resumeTokenChanged
-      // event and returning the change
+      // and passing it along to the flush buffer.
+      // - The implementation of next() also does not have
+      // any microtask delays between it emitting the
+      // resumeTokenChanged event and returning the change.
       // See https://github.com/mongodb/node-mongodb-native/blob/44bc5a880230a5be93afc9e2a4fa0a4586481edd/src/change_stream.ts#L746
       await Promise.resolve();
       await Promise.resolve();
@@ -103,6 +128,7 @@ export async function* runPersister(
           "_data"
         ]
       ) {
+        lastResumeToken = resumeToken;
         const decoded = decodeResumeToken(newResumeTokenData);
         const event = {
           _id: new ObjectId(),
@@ -113,17 +139,20 @@ export async function* runPersister(
           o: "n",
           w: new Date(),
         } satisfies PCSNoopEvent;
-        await pushPCSEventUpdateMetadata(event, resumeToken);
+        // Awaiting this would be meaningless
+        // as we are inside an EventEmitter
+        // callback
+        void flushBuffer.push(event);
       }
     }) as (rt: unknown) => void);
 
     while (true) {
       yield;
       const ce = await cs.next();
-      lastResumeToken = ce._id;
       const pcse = changeEventToPCSEvent(ce);
       if (typeof pcse !== "undefined") {
-        await pushPCSEventUpdateMetadata(pcse, ce._id);
+        lastResumeToken = ce._id;
+        await flushBuffer.push(pcse);
       }
     }
   } finally {

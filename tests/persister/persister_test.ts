@@ -31,7 +31,11 @@ describe("persister", () => {
   afterEach(() => client.close());
 
   async function runPersisterDetached() {
-    const persister = runPersister(db.collection(collectionName), db);
+    const persister = runPersister(
+      client,
+      db.databaseName,
+      db.collection(collectionName)
+    );
     while (true) {
       await persister.next();
       await new Promise((res) => setTimeout(res, 50));

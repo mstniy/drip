@@ -9,7 +9,7 @@ async function main() {
 
   console.log("Starting the Drip persister...");
 
-  const persister = runPersister(coll, db);
+  const persister = runPersister(client, dbName, coll);
 
   while (true) {
     await persister.next();
