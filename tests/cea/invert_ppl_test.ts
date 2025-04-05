@@ -66,8 +66,16 @@ describe("invertPipeline", () => {
   });
   it("can invert pipelines with one $match", () => {
     assert.deepStrictEqual(
-      invertPipeline([{ type: "match", filter: { a: 0 } }]),
-      [[{ type: "match", filter: { $nor: [{ a: 0 }] } }]]
+      invertPipeline([
+        { type: "addFields", fields: { a: "$b" } },
+        { type: "match", filter: { a: 0 } },
+      ]),
+      [
+        [
+          { type: "addFields", fields: { a: "$b" } },
+          { type: "match", filter: { $nor: [{ a: 0 }] } },
+        ],
+      ]
     );
   });
   it("does not invert pipelines with multiple $match-s", () => {
