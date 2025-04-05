@@ -1,7 +1,6 @@
 import {
   Abortable,
   AggregateOptions,
-  AggregationCursor,
   Db,
   Document,
   ReadConcernLevel,
@@ -11,13 +10,13 @@ import { CCCursor } from "./cc_cursor";
 import { DripPipeline, DripProcessingPipeline } from "../drip_pipeline";
 import z from "zod";
 
-function makeAggregation(
+async function* makeAggregation(
   db: Db,
   collNameOrCursor: string | CCCursor,
   pipeline: Readonly<DripPipeline>,
   processingPipeline: Readonly<DripPipeline> | undefined,
   options?: AggregateOptions & Abortable
-): AggregationCursor<Document> {
+): AsyncGenerator<Document[], void, void> {
   const collectionName =
     typeof collNameOrCursor === "string"
       ? collNameOrCursor
@@ -37,7 +36,17 @@ function makeAggregation(
       { ...options, readConcern: ReadConcernLevel.majority }
     );
 
-  return c;
+  try {
+    let hasNext = c.hasNext();
+    while (await hasNext) {
+      const docs = c.readBufferedDocuments();
+      // Right away schedule the next batch
+      hasNext = c.hasNext();
+      yield docs;
+    }
+  } finally {
+    await c.close();
+  }
 }
 
 async function getClusterTime(db: Db) {
@@ -62,7 +71,9 @@ export async function* dripCC(
 ): AsyncGenerator<Document, Timestamp, void> {
   const c = makeAggregation(db, collNameOrCursor, pipeline, processingPipeline);
 
-  yield* c;
+  for await (const batch of c) {
+    yield* batch;
+  }
 
   return getClusterTime(db);
 }
@@ -81,16 +92,8 @@ export async function* dripCCRaw(
     { raw: true }
   )[Symbol.asyncIterator]();
 
-  try {
-    let next = c.next();
-    while (true) {
-      const res = await next;
-      if (res.done) break;
-      next = c.next();
-      yield res.value as unknown as Buffer;
-    }
-  } finally {
-    await c.return();
+  for await (const batch of c) {
+    yield* batch.map((b) => b as unknown as Buffer);
   }
 
   return getClusterTime(db);
