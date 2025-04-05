@@ -12,6 +12,25 @@ export async function expirePCSEvents(
     .db(metadataDbName)
     .collection(derivePCSCollName(collectionName));
 
+  const maxCT = z
+    .object({ ct: z.instanceof(Timestamp) })
+    .optional()
+    .parse(
+      (
+        await pcsColl
+          .find({}, { readConcern: ReadConcernLevel.majority })
+          .sort({ ct: -1 })
+          .project({ _id: 0, ct: 1 })
+          .limit(1)
+          .toArray()
+      )[0]
+    )?.ct;
+
+  if (!maxCT) {
+    // No persisted events
+    return;
+  }
+
   const lastExpiredCT = z
     .object({ ct: z.instanceof(Timestamp) })
     .optional()
@@ -34,11 +53,13 @@ export async function expirePCSEvents(
     return;
   }
 
+  if (lastExpiredCT.gte(maxCT)) {
+    throw new CannotCleanTailError();
+  }
+
   // Use a transaction to guarantee that
   // we never delete an event with a higher
   // [cluster time, id] followed by a lower one.
-  // Note that we also assume the perister will not
-  // later persist a change event with ct <= lastExpiredCT.
   await client.withSession((session) =>
     session.withTransaction(
       async (session) => {
@@ -51,3 +72,5 @@ export async function expirePCSEvents(
     )
   );
 }
+
+export class CannotCleanTailError extends Error {}

@@ -4,8 +4,15 @@ import { openTestDB } from "../test_utils/open_test_db";
 import { getRandomString } from "../test_utils/random_string";
 import { PCSNoopEvent, PCSInsertionEvent } from "../../src/cea/pcs_event";
 import { derivePCSCollName } from "../../src/cea/derive_pcs_coll_name";
-import { expirePCSEvents } from "../../src/cleaner/cleaner";
-import { advanceDate, ONE_YEAR_MS } from "../test_utils/date_utils";
+import {
+  CannotCleanTailError,
+  expirePCSEvents,
+} from "../../src/cleaner/cleaner";
+import {
+  advanceDate,
+  incrementDate,
+  ONE_YEAR_MS,
+} from "../test_utils/date_utils";
 import { strict as assert } from "assert";
 
 describe("cleaner", () => {
@@ -68,6 +75,14 @@ describe("cleaner", () => {
     await pcsCollection.insertMany(events);
   });
 
+  it("does nothing if there are no persisted events", async () => {
+    await expirePCSEvents(
+      "nosuchcollection",
+      client,
+      db.databaseName,
+      new Date()
+    );
+  });
   it("does nothing if there are no affected events", async () => {
     await expirePCSEvents(
       collectionName,
@@ -79,6 +94,19 @@ describe("cleaner", () => {
       (await pcsCollection.find().sort({ ct: 1 }).toArray()).map((o) => o._id),
       events.map((o) => o._id)
     );
+  });
+  it("refuses the clean the tail of the PCS", async () => {
+    try {
+      await expirePCSEvents(
+        collectionName,
+        client,
+        db.databaseName,
+        incrementDate(events[4].w)
+      );
+      assert("must have thrown");
+    } catch (e) {
+      assert(e instanceof CannotCleanTailError);
+    }
   });
   it("deletes the affected events", async () => {
     await expirePCSEvents(collectionName, client, db.databaseName, events[4].w);
