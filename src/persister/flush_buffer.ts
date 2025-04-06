@@ -31,4 +31,11 @@ export class FlushBuffer<T> {
     this._items = [];
     return this._flusher(items);
   }
+
+  abort(): void {
+    if (this._timer) {
+      clearTimeout(this._timer);
+      this._timer = undefined;
+    }
+  }
 }

@@ -156,6 +156,11 @@ export async function* runPersister(
       }
     }
   } finally {
+    // Cancel the timer from FlushBuffer
+    flushBuffer.abort();
+    // Wait for the existing operations on the
+    // PromiseTrain
+    await promiseTrain.push(() => Promise.resolve());
     await cs.close();
   }
 }
