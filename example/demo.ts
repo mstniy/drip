@@ -8,21 +8,17 @@ import {
 } from "../src";
 import z from "zod";
 import { collName, dbName, mongoURL } from "./constants";
-import { dripCCStart } from "../src/cc/cc";
+import { dripCC } from "../src/cc/cc";
+import { strict as assert } from "assert";
 
-async function genToArray<T, R>(
-  gen: AsyncGenerator<T, R, void>
-): Promise<[T[], R]> {
+async function genToArray<T>(gen: AsyncGenerator<T, void, void>): Promise<T[]> {
   const arr: T[] = [];
 
-  while (true) {
-    const res = await gen.next();
-    if (!res.done) {
-      arr.push(res.value);
-    } else {
-      return [arr, res.value];
-    }
+  for await (const t of gen) {
+    arr.push(t);
   }
+
+  return arr;
 }
 
 const zodTodo = z.object({
@@ -46,14 +42,29 @@ async function* sync() {
 
   console.log("Starting collection copy...");
 
-  const { ccStart, gen: ccGen } = await dripCCStart(db, collName, pipeline);
+  const ccGen = dripCC(client, dbName, collName, undefined, pipeline);
 
   const ccRes = await genToArray(ccGen);
 
-  const ccEnd = ccRes[1];
+  assert(ccRes.length > 0, "dripCC did not return a cluster time");
+
+  // Unlike ccEnd, we do not strip the signature from
+  // ccStart, as a real imlementation would need to
+  // store it and pass it to subsequent dripCC calls,
+  // if need be.
+  const ccStart = ccRes[0]![0];
+
+  // Note that in a real implementation this
+  // would be the maximum of such values across
+  // all calls to dripCC.
+  // We strip the signature field, as the only use
+  // for ccEnd is for us to figure out how long
+  // to continue CEA t obtain a consistent snapshot.
+  const ccEnd = ccRes[ccRes.length - 1]![0].clusterTime;
 
   const subset = Object.fromEntries(
-    ccRes[0]
+    ccRes
+      .flatMap((r) => r[1])
       .map((d) => zodTodoWithId.parse(d))
       .map((d) => [d._id.toHexString(), zodTodo.parse(d)] as const)
   );
@@ -103,7 +114,7 @@ async function* sync() {
   while (true) {
     let gotMeaningfulChange = false;
     for await (const c of typeof ceaCursor === "undefined"
-      ? dripCEAStart(db, collName, ccStart, pipeline)
+      ? dripCEAStart(db, collName, ccStart.clusterTime, pipeline)
       : dripCEAResume(db, collName, ceaCursor, pipeline)) {
       if (c.operationType !== "noop") {
         gotMeaningfulChange = true;
