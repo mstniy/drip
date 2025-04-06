@@ -18,10 +18,15 @@ import { decodeResumeToken } from "mongodb-resumetoken-decoder";
 import z from "zod";
 import { FlushBuffer } from "./flush_buffer";
 
+export interface PersisterOptions {
+  maxAwaitTimeMS?: number;
+}
+
 export async function* runPersister(
   metadataClient: MongoClient,
   metadataDbName: string,
-  watchCollection: Collection
+  watchCollection: Collection,
+  options?: PersisterOptions
 ): AsyncGenerator<void, void, void> {
   const collectionName = watchCollection.collectionName;
   const promiseTrain = new PromiseTrain();
@@ -75,6 +80,10 @@ export async function* runPersister(
   )[0]?.resumeToken;
 
   const MAX_BUFFER_LENGTH = 1000;
+  const maxAwaitTimeMS =
+    typeof options?.maxAwaitTimeMS === "undefined"
+      ? 10000
+      : options.maxAwaitTimeMS;
 
   let lastResumeToken: unknown;
   const flushBuffer = new FlushBuffer<PCSEventCommon>(
@@ -98,6 +107,7 @@ export async function* runPersister(
       fullDocumentBeforeChange: "required",
       resumeAfter: persistedResumeToken,
       readConcern: ReadConcernLevel.majority,
+      maxAwaitTimeMS,
     }
   );
 
@@ -148,7 +158,14 @@ export async function* runPersister(
 
     while (true) {
       yield;
-      const ce = await cs.next();
+      // Use tryNext instead of next to make the
+      // query return if there are still no events
+      // after maxAwaitTimeMS.
+      // We use this to avoid getting stuck on a
+      // single next(), as we do want to yield
+      // periodically.
+      const ce = await cs.tryNext();
+      if (!ce) continue;
       const pcse = changeEventToPCSEvent(ce);
       if (typeof pcse !== "undefined") {
         lastResumeToken = ce._id;

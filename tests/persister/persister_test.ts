@@ -14,6 +14,7 @@ import {
 import { runPersister } from "../../src/persister/persister";
 import { openTestDB } from "../test_utils/open_test_db";
 import { getRandomString } from "../test_utils/random_string";
+import { dbName } from "../../example/constants";
 
 describe("persister", () => {
   let client: MongoClient;
@@ -177,6 +178,35 @@ describe("persister", () => {
           e.message ===
             "BSON field '$changeStream.resumeAfter' is the wrong type 'string', expected type 'object'"
       );
+    }
+  });
+
+  it("can stop gracefully", async () => {
+    // Create a new collection & client to avoid
+    // interfering with the other tests
+    const collectionName = getRandomString();
+    const [client, db] = await openTestDB();
+
+    const p = runPersister(client, dbName, db.collection(collectionName), {
+      maxAwaitTimeMS: 10,
+    });
+    // Let it run for a while
+    for (let i = 0; i < 10; i++) {
+      const res = await p.next();
+      // Does not terminate by itself
+      assert(!res.done);
+      // Wait for a task for interesting things to happen
+      await new Promise((res) => setTimeout(res, 0));
+    }
+    // Shut it down
+    await p.return();
+
+    // Not we can close the client
+    await client.close();
+
+    // The persister has indeed returned
+    for (let i = 0; i < 10; i++) {
+      await p.next();
     }
   });
 });
