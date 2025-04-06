@@ -31,7 +31,7 @@ export async function expirePCSEvents(
     return;
   }
 
-  const lastExpiredCT = z
+  const lastExpiredCT_ = z
     .object({ ct: z.instanceof(Timestamp) })
     .optional()
     .parse(
@@ -48,14 +48,15 @@ export async function expirePCSEvents(
       )[0]
     )?.ct;
 
-  if (!lastExpiredCT) {
+  if (!lastExpiredCT_) {
     // No expired events
     return;
   }
 
-  if (lastExpiredCT.gte(maxCT)) {
-    throw new CannotCleanTailError();
-  }
+  // Avoid cleaning the tail of the PCS
+  const lastExpiredCT = lastExpiredCT_.gte(maxCT)
+    ? new Timestamp(maxCT.subtract(1))
+    : lastExpiredCT_;
 
   // Use a transaction to guarantee that
   // we never delete an event with a higher
@@ -72,5 +73,3 @@ export async function expirePCSEvents(
     )
   );
 }
-
-export class CannotCleanTailError extends Error {}
