@@ -54,13 +54,10 @@ async function* sync() {
   // if need be.
   const ccStart = ccRes[0]![0];
 
-  // Note that in a real implementation this
-  // would be the maximum of such values across
-  // all calls to dripCC.
-  // We strip the signature field, as the only use
-  // for ccEnd is for us to figure out how long
-  // to continue CEA t obtain a consistent snapshot.
-  const ccEnd = ccRes[ccRes.length - 1]![0].clusterTime;
+  // Get the highest timestamp returned by CC
+  const ccEnd = ccRes
+    .map((batch) => batch[0].clusterTime)
+    .reduce((t1, t2) => (t1.gt(t2) ? t1 : t2));
 
   const subset = Object.fromEntries(
     ccRes
