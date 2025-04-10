@@ -8,7 +8,7 @@ import {
 } from "../src";
 import z from "zod";
 import { collName, dbName, mongoURL } from "./constants";
-import { dripCC } from "../src/cc/cc";
+import { CCWaitForPersisterError, dripCC } from "../src/cc/cc";
 import { strict as assert } from "assert";
 
 async function genToArray<T>(gen: AsyncGenerator<T, void, void>): Promise<T[]> {
@@ -42,9 +42,22 @@ async function* sync() {
 
   console.log("Starting collection copy...");
 
-  const ccGen = dripCC(client, dbName, dbName, collName, undefined, pipeline);
+  let ccRes;
+  while (true) {
+    const ccGen = dripCC(client, dbName, dbName, collName, undefined, pipeline);
 
-  const ccRes = await genToArray(ccGen);
+    try {
+      ccRes = await genToArray(ccGen);
+      break;
+    } catch (e) {
+      if (e instanceof CCWaitForPersisterError) {
+        console.log("  Waiting for the persister to start...");
+        await new Promise((res) => setTimeout(res, 1000));
+      } else {
+        throw e;
+      }
+    }
+  }
 
   assert(ccRes.length > 0, "dripCC did not return a cluster time");
 
