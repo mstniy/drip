@@ -2,7 +2,7 @@
 
 - Avoid using `$or` for tuple comparison. This sometimes confused MongoDB into using an in-memory sort, even if there is an index supporting the sort order. Instead, use multiple individual cursors and append the results.
 - Reduce client traffic by only returning the noop event with the greatest cluster time, if it is more recent than all the other events, if any exist.
-- Reduce database traffic by inverting the sync pipeline to distinguish updates from additions, if clearly beneficial.
+- Reduce database traffic by inverting the sync pipeline to distinguish updates from additions in select cases.
 - Reduce database load by stripping away stages of the synced pipeline if possible.
 - Reduce PCS size by not storing PCS event version in the PCS events themselves.
 - Reduce PCS size by only storing the wall clock for noop events.

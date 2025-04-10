@@ -67,7 +67,13 @@ async function* cc_common(
         const docs = c.readBufferedDocuments();
         assert(session.clusterTime, "Expected cluster time");
         yielded = true;
-        yield [session.clusterTime, docs];
+        // We need not yield a signed cluster time,
+        // as any cluster time after the initial one
+        // (which we have already yielded above, if needed)
+        // is only to be used to determine until when to
+        // continue CEA before declaring the resulting
+        // snapshot consistent.
+        yield [{ clusterTime: session.clusterTime.clusterTime }, docs];
       }
 
       if (!yielded) {
