@@ -181,10 +181,9 @@ describe("persister", () => {
   });
 
   it("can stop gracefully", async () => {
-    // Create a new collection & client to avoid
+    // Use a new collection to avoid
     // interfering with the other tests
     const collectionName = getRandomString();
-    const [client, db, mddb] = await openTestDB();
 
     const p = runPersister(
       client,
