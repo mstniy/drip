@@ -42,7 +42,7 @@ async function* sync() {
 
   console.log("Starting collection copy...");
 
-  const ccGen = dripCC(client, dbName, collName, undefined, pipeline);
+  const ccGen = dripCC(client, dbName, dbName, collName, undefined, pipeline);
 
   const ccRes = await genToArray(ccGen);
 

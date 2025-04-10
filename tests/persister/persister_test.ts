@@ -14,15 +14,14 @@ import {
 import { runPersister } from "../../src/persister/persister";
 import { openTestDB } from "../test_utils/open_test_db";
 import { getRandomString } from "../test_utils/random_string";
-import { dbName } from "../../example/constants";
 
 describe("persister", () => {
   let client: MongoClient;
-  let db: Db;
+  let db: Db, mddb: Db;
   let collectionName: string;
   beforeEach(async () => {
     collectionName = getRandomString();
-    [client, db] = await openTestDB();
+    [client, db, mddb] = await openTestDB();
     await db.createCollection(collectionName);
     await db.command({
       collMod: collectionName,
@@ -34,7 +33,7 @@ describe("persister", () => {
   async function runPersisterDetached() {
     const persister = runPersister(
       client,
-      db.databaseName,
+      mddb.databaseName,
       db.collection(collectionName)
     );
     while (true) {
@@ -55,7 +54,7 @@ describe("persister", () => {
       // Check if the persisted change stream collection
       // has been populated
       if (
-        (await db
+        (await mddb
           .collection(derivePCSCollName(collectionName))
           .countDocuments()) > 0
       ) {
@@ -67,7 +66,7 @@ describe("persister", () => {
     // Give up if the persisted chsange stream collection
     // is still empty.
     if (
-      (await db
+      (await mddb
         .collection(derivePCSCollName(collectionName))
         .countDocuments()) === 0
     ) {
@@ -86,7 +85,7 @@ describe("persister", () => {
     // object id
     for (let i = 0; i < 30; i++) {
       if (
-        (await db
+        (await mddb
           .collection(derivePCSCollName(collectionName))
           .countDocuments({ "k._id": id })) === 3
       ) {
@@ -97,7 +96,7 @@ describe("persister", () => {
     }
     // Give up if the persisted chsange stream collection
     // does not have three events for the chosen object id
-    const pcsEvents = await db
+    const pcsEvents = await mddb
       .collection(derivePCSCollName(collectionName))
       .find({ "k._id": id })
       .sort({ ct: 1 })
@@ -156,7 +155,7 @@ describe("persister", () => {
     // the change stream
     wc.once("change", () => null);
     await completerPromise;
-    await db.collection<DripMetadata>(MetadataCollectionName).insertOne({
+    await mddb.collection<DripMetadata>(MetadataCollectionName).insertOne({
       _id: collectionName,
       resumeToken,
     } satisfies DripMetadata);
@@ -164,7 +163,7 @@ describe("persister", () => {
   });
 
   it("throws when an invalid resume token is saved", async () => {
-    await db.collection<DripMetadata>(MetadataCollectionName).insertOne({
+    await mddb.collection<DripMetadata>(MetadataCollectionName).insertOne({
       _id: collectionName,
       resumeToken: "not a valid resume token :(",
     } satisfies DripMetadata);
@@ -185,11 +184,16 @@ describe("persister", () => {
     // Create a new collection & client to avoid
     // interfering with the other tests
     const collectionName = getRandomString();
-    const [client, db] = await openTestDB();
+    const [client, db, mddb] = await openTestDB();
 
-    const p = runPersister(client, dbName, db.collection(collectionName), {
-      maxAwaitTimeMS: 10,
-    });
+    const p = runPersister(
+      client,
+      mddb.databaseName,
+      db.collection(collectionName),
+      {
+        maxAwaitTimeMS: 10,
+      }
+    );
     // Let it run for a while
     for (let i = 0; i < 10; i++) {
       const res = await p.next();

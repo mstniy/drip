@@ -2,10 +2,12 @@ import { ClusterTime, Document, MongoClient, ReadConcernLevel } from "mongodb";
 import { CCCursor } from "./cc_cursor";
 import { DripPipeline, DripProcessingPipeline } from "../drip_pipeline";
 import { strict as assert } from "assert";
+import { derivePCSCollName } from "../cea/derive_pcs_coll_name";
 
 async function* cc_common(
   client: MongoClient,
   dbName: string,
+  metadataDBName: string,
   collectionName: string,
   cursorClusterTime: [CCCursor, ClusterTime] | undefined,
   pipeline: Readonly<DripPipeline>,
@@ -36,6 +38,29 @@ async function* cc_common(
         .toArray();
 
       assert(session.clusterTime, "Expected cluster time");
+
+      // Check if there already is at least one persisted
+      // change event with a lower cluster time.
+      // As otherwise, doing CC is pointless as CEA
+      // will fail anyway.
+      const olderPCSEExists =
+        (
+          await client
+            .db(metadataDBName)
+            .collection(derivePCSCollName(collectionName))
+            .find(
+              { ct: { $lt: session.clusterTime.clusterTime } },
+              { readConcern: ReadConcernLevel.majority, session }
+            )
+            .project({ _id: 0 })
+            .limit(1)
+            .toArray()
+        ).length > 0;
+
+      if (!olderPCSEExists) {
+        throw new CCWaitForPersisterError();
+      }
+
       yield [session.clusterTime, []];
     }
 
@@ -93,6 +118,7 @@ async function* cc_common(
 export function dripCC(
   client: MongoClient,
   dbName: string,
+  metadataDBName: string,
   collectionName: string,
   cursorClusterTime: [CCCursor, ClusterTime] | undefined,
   pipeline: Readonly<DripPipeline>,
@@ -101,6 +127,7 @@ export function dripCC(
   return cc_common(
     client,
     dbName,
+    metadataDBName,
     collectionName,
     cursorClusterTime,
     pipeline,
@@ -112,6 +139,7 @@ export function dripCC(
 export async function* dripCCRaw(
   client: MongoClient,
   dbName: string,
+  metadataDBName: string,
   collectionName: string,
   cursorClusterTime: [CCCursor, ClusterTime] | undefined,
   pipeline: Readonly<DripPipeline>,
@@ -120,6 +148,7 @@ export async function* dripCCRaw(
   const gen = cc_common(
     client,
     dbName,
+    metadataDBName,
     collectionName,
     cursorClusterTime,
     pipeline,
@@ -138,3 +167,5 @@ export async function* dripCCRaw(
     yield [r[0], buffersSafe];
   }
 }
+
+export class CCWaitForPersisterError extends Error {}
