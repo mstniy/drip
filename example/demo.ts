@@ -44,7 +44,7 @@ async function* sync() {
 
   let ccRes;
   while (true) {
-    const ccGen = dripCC(client, dbName, dbName, collName, undefined, pipeline);
+    const ccGen = dripCC(client, dbName, db, collName, undefined, pipeline);
 
     try {
       ccRes = await genToArray(ccGen);

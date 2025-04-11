@@ -58,14 +58,9 @@ after(() => client.close());
 describe("dripCC", () => {
   it("works without a cursor", async () => {
     const res = await genToArray(
-      dripCC(
-        client,
-        db.databaseName,
-        mddb.databaseName,
-        collectionName,
-        undefined,
-        [{ $match: { a: 0 } }]
-      )
+      dripCC(client, db.databaseName, mddb, collectionName, undefined, [
+        { $match: { a: 0 } },
+      ])
     );
 
     const docs = res.flatMap((r) => r[1]);
@@ -88,14 +83,7 @@ describe("dripCC", () => {
     const collectionName = getRandomString();
     await mddb.collection(derivePCSCollName(collectionName)).insertMany(events);
     const res = await genToArray(
-      dripCC(
-        client,
-        db.databaseName,
-        mddb.databaseName,
-        collectionName,
-        undefined,
-        []
-      )
+      dripCC(client, db.databaseName, mddb, collectionName, undefined, [])
     );
     // One for the lower bound on the start,
     // another for the upper bound on the end.
@@ -111,14 +99,7 @@ describe("dripCC", () => {
       .insertOne({ ...events[0], ct: new Timestamp(Long.MAX_VALUE) });
     try {
       await genToArray(
-        dripCC(
-          client,
-          db.databaseName,
-          mddb.databaseName,
-          collectionName,
-          undefined,
-          []
-        )
+        dripCC(client, db.databaseName, mddb, collectionName, undefined, [])
       );
       throw new Error("must have thrown");
     } catch (e) {
@@ -130,7 +111,7 @@ describe("dripCC", () => {
     const cctmp = dripCC(
       client,
       db.databaseName,
-      mddb.databaseName,
+      mddb,
       collectionName,
       undefined,
       []
@@ -145,7 +126,7 @@ describe("dripCC", () => {
       dripCC(
         client,
         db.databaseName,
-        mddb.databaseName,
+        mddb,
         collectionName,
         [{ id: 0 }, ccStart],
         [{ $match: { a: 0 } }]
@@ -167,14 +148,9 @@ describe("dripCC", () => {
 describe("dripCCRaw", () => {
   it("works", async () => {
     const res = await genToArray(
-      dripCCRaw(
-        client,
-        db.databaseName,
-        mddb.databaseName,
-        collectionName,
-        undefined,
-        [{ $match: { a: 0 } }]
-      )
+      dripCCRaw(client, db.databaseName, mddb, collectionName, undefined, [
+        { $match: { a: 0 } },
+      ])
     );
 
     const docs = res.flatMap((r) => r[1]).map((x) => BSON.deserialize(x));

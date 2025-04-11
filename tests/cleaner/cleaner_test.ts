@@ -62,8 +62,7 @@ describe("cleaner", () => {
     },
   ] as const;
   before(async () => {
-    let _db;
-    [client, _db, db] = await openTestDB();
+    [client, , db] = await openTestDB();
   });
   after(() => client.close());
 

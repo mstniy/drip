@@ -76,8 +76,7 @@ describe("dripCEAStart", () => {
     } satisfies PCSNoopEvent,
   ] as const;
   before(async () => {
-    let _db;
-    [client, _db, db] = await openTestDB();
+    [client, , db] = await openTestDB();
     await db.collection(derivePCSCollName(collectionName)).insertMany(events);
   });
   after(() => client.close());

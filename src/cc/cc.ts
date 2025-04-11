@@ -1,4 +1,10 @@
-import { ClusterTime, Document, MongoClient, ReadConcernLevel } from "mongodb";
+import {
+  ClusterTime,
+  Db,
+  Document,
+  MongoClient,
+  ReadConcernLevel,
+} from "mongodb";
 import { CCCursor } from "./cc_cursor";
 import { DripPipeline, DripProcessingPipeline } from "../drip_pipeline";
 import { strict as assert } from "assert";
@@ -7,7 +13,7 @@ import { derivePCSCollName } from "../cea/derive_pcs_coll_name";
 async function* cc_common(
   client: MongoClient,
   dbName: string,
-  metadataDBName: string,
+  metadataDb: Db,
   collectionName: string,
   cursorClusterTime: [CCCursor, ClusterTime] | undefined,
   pipeline: Readonly<DripPipeline>,
@@ -45,8 +51,7 @@ async function* cc_common(
       // will fail anyway.
       const olderPCSEExists =
         (
-          await client
-            .db(metadataDBName)
+          await metadataDb
             .collection(derivePCSCollName(collectionName))
             .find(
               { ct: { $lt: session.clusterTime.clusterTime } },
@@ -118,7 +123,7 @@ async function* cc_common(
 export function dripCC(
   client: MongoClient,
   dbName: string,
-  metadataDBName: string,
+  metadataDb: Db,
   collectionName: string,
   cursorClusterTime: [CCCursor, ClusterTime] | undefined,
   pipeline: Readonly<DripPipeline>,
@@ -127,7 +132,7 @@ export function dripCC(
   return cc_common(
     client,
     dbName,
-    metadataDBName,
+    metadataDb,
     collectionName,
     cursorClusterTime,
     pipeline,
@@ -139,7 +144,7 @@ export function dripCC(
 export async function* dripCCRaw(
   client: MongoClient,
   dbName: string,
-  metadataDBName: string,
+  metadataDb: Db,
   collectionName: string,
   cursorClusterTime: [CCCursor, ClusterTime] | undefined,
   pipeline: Readonly<DripPipeline>,
@@ -148,7 +153,7 @@ export async function* dripCCRaw(
   const gen = cc_common(
     client,
     dbName,
-    metadataDBName,
+    metadataDb,
     collectionName,
     cursorClusterTime,
     pipeline,
