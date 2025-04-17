@@ -29,6 +29,7 @@ async function* cc_common(
       // Make sure the data we get is not more stale than
       // ccStart. This makes it a valid lower bound for
       // the duration over which cc took place.
+      // See https://github.com/mongodb/specifications/blob/43d2c7bacd62249de8d2173bf8ee39e6fd7a686e/source/causal-consistency/causal-consistency.md#causalconsistency
       session.advanceClusterTime(cursorClusterTime[1]);
     } else {
       // This is the very first batch the client will get.
@@ -83,10 +84,7 @@ async function* cc_common(
       // See https://www.mongodb.com/docs/manual/core/causal-consistency-read-write-concerns/
       // Also note that the snapshot read concern is not
       // useful in our case, as it is limited to
-      // a time window as well as to individual cursors,
-      // but we want clients to be able to perform cc
-      // even for large collections and resume it
-      // across sync interruptions.
+      // a likely-too-small time window.
       // See https://www.mongodb.com/docs/manual/reference/read-concern-snapshot/#std-label-read-concern-snapshot
       { readConcern: ReadConcernLevel.majority, session, raw }
     );
