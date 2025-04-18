@@ -1,4 +1,4 @@
-## 0.1.0
+## 0.1.0 - 2025-04-18
 
 - Avoid using `$or` for tuple comparison. This sometimes confused MongoDB into using an in-memory sort, even if there is an index supporting the sort order. Instead, use multiple individual cursors and append the results.
 - Reduce client traffic by only returning the noop event with the greatest cluster time, if it is more recent than all the other events, if any exist.
@@ -18,6 +18,7 @@
 - CEA: Take as parameter the lower bound for the cluster time at the beginning of CC instead of a wall clock. More efficient and does not assume that the client wall clock is accurate.
 - Persister: Use bulk insertions and transactions to improve throughput.
 - Close MongoDB cursors correctly.
+- CC: Throw if there are no prior persisted events.
 
 ## 0.0.1 - 2025-03-15
 

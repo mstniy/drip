@@ -1,6 +1,6 @@
 {
   "name": "@drip_sync/drip",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Scalable incremental sync for MongoDB aggregation pipelines",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
