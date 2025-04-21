@@ -34,3 +34,19 @@ drip_demo> db.drip_demo.deleteOne({title: "new title"}) // Delete an item
 ```
 
 Note that the MongoDB documents must satisfy the schema defined in `demo.ts`.
+
+You can create the following indices to speed up CEA queries:
+
+```
+let coll = db.getCollection("_drip_pcs_v1_drip_demo")
+coll.createIndex({ct: 1})
+coll.createIndex({"a.userId":1, ct:1, _id: 1}, {name: 'for_ins', partialFilterExpression: {o: "i"}})
+coll.createIndex({"o":1, "b.userId":1, ct:1, _id: 1}, {partialFilterExpression: {o: {$in: ["d", "u"]}}})
+coll.createIndex({"o":1, "a.userId":1, ct:1, _id: 1}, {partialFilterExpression: {o: "u"}})
+```
+
+And similarly for the CC queries:
+
+```
+db.drip_demo.createIndex({userId: 1, _id: 1})
+```
