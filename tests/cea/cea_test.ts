@@ -4,6 +4,7 @@ import { Db, MongoClient, ObjectId, Timestamp } from "mongodb";
 import {
   CSAdditionEvent,
   CSNoopEvent,
+  CSReplaceEvent,
   CSSubtractionEvent,
   CSUpdateEvent,
   dripCEAStart,
@@ -171,7 +172,8 @@ describe("dripCEAResume", () => {
       _id: new ObjectId(),
       a: { _id: "a", a: 0, b: 1 },
       b: { _id: "a", a: 0 },
-      u: { i: { b: 1 } },
+      // Note that this is a replacement - as
+      // it does not have the update description
       ct: new Timestamp({ t: 1740050686, i: 0 }),
       k: { _id: "a" },
       o: "u",
@@ -379,7 +381,7 @@ describe("dripCEAResume", () => {
           clusterTime: events[1].ct,
           id: events[1]._id,
         },
-        fullDocument: { ...events[1].a, _id: events[1].a._id, hey: 0 },
+        fullDocument: { ...events[1].a, hey: 0 },
         operationType: "addition",
       } satisfies CSAdditionEvent,
       // events[2] is omitted: irrelevant insertion
@@ -394,15 +396,15 @@ describe("dripCEAResume", () => {
       } satisfies CSSubtractionEvent,
       // events[4] is omitted: irrelevant deletion
       // update of a relevant object is an update, if it stays relevant
+      // this is a replacement, like the underlying pcs event
       {
         cursor: {
           clusterTime: events[5].ct,
           id: events[5]._id,
         },
-        updateDescription: events[5].u,
-        operationType: "update",
-        id: events[5].a._id,
-      } satisfies CSUpdateEvent,
+        fullDocument: { ...events[5].a, hey: 0 },
+        operationType: "replace",
+      } satisfies CSReplaceEvent,
       // update of a relevant object is a sutraction, if it is not relevant anymore
       {
         cursor: {
@@ -418,7 +420,7 @@ describe("dripCEAResume", () => {
           clusterTime: events[7].ct,
           id: events[7]._id,
         },
-        fullDocument: { ...events[7].a, _id: events[7].a._id, hey: 0 },
+        fullDocument: { ...events[7].a, hey: 0 },
         operationType: "addition",
       } satisfies CSAdditionEvent,
       // events[8] is omitted: it is an update to an irrelevant object, which is still irrelevant

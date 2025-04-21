@@ -95,7 +95,7 @@ export async function* runPersister(
     [
       {
         $match: {
-          operationType: { $in: ["insert", "update", "delete"] },
+          operationType: { $in: ["insert", "update", "replace", "delete"] },
         },
       },
     ],

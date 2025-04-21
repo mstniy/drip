@@ -21,7 +21,7 @@ export function changeEventToPCSEvent(
       a: z.record(z.unknown()).parse(ce.fullDocument),
     } satisfies PCSInsertionEvent;
     return res;
-  } else if (ce.operationType === "update") {
+  } else if (ce.operationType === "update" || ce.operationType === "replace") {
     assert(typeof ce.fullDocumentBeforeChange !== "undefined");
     const res = {
       _id: new ObjectId(),
@@ -30,7 +30,9 @@ export function changeEventToPCSEvent(
       k: z.record(z.unknown()).parse(ce.documentKey),
       b: z.record(z.unknown()).parse(ce.fullDocumentBeforeChange),
       a: z.record(z.unknown()).parse(ce.fullDocument),
-      u: updateDescriptionToU(ce.updateDescription),
+      ...(ce.operationType === "update"
+        ? { u: updateDescriptionToU(ce.updateDescription) }
+        : {}),
     } satisfies PCSUpdateEvent;
     return res;
   } else if (ce.operationType === "delete") {

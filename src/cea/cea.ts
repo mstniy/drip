@@ -5,6 +5,7 @@ import {
   CSUpdateEvent,
   CSAdditionEvent,
   CSNoopEvent,
+  CSReplaceEvent,
 } from "./cs_event";
 import { DripPipeline, DripProcessingPipeline } from "../drip_pipeline";
 import z from "zod";
@@ -191,12 +192,31 @@ export async function* dripCEAResume(
     )
   );
 
-  const c2aschema = z.object({
-    _id: z.instanceof(ObjectId),
-    ct: z.instanceof(Timestamp),
-    u: z.record(z.string(), z.unknown()),
-    id: z.unknown(),
-  });
+  const c2aschema = z
+    .object({
+      _id: z.instanceof(ObjectId),
+      ct: z.instanceof(Timestamp),
+    })
+    .and(
+      z
+        .object({
+          a: z.never().optional(),
+          u: z.record(z.string(), z.unknown()),
+          id: z.unknown(),
+        })
+        .transform((x) => {
+          return { op: "u" as const, ...x };
+        })
+        .or(
+          z.object({
+            a: z.record(z.string(), z.unknown()),
+            u: z.never().optional(),
+          })
+        )
+        .transform((x) => {
+          return { op: "r" as const, ...x };
+        })
+    );
 
   const c2a = streamAppend(
     matchRelevantEvents.map((mre) =>
@@ -212,18 +232,41 @@ export async function* dripCEAResume(
                 _id: 1,
               },
             },
+            // We run the processing pipeline even for
+            // update events, which throw away the `a`
+            // field anyway, as this is easier than
+            // creating another stream just for replacement
+            // events.
+            ...(processingPipelineScopedToAfter ?? []),
             {
               $project: {
                 ct: 1,
                 u: 1,
-                id: "$b._id",
+                // If we have the update description, we don't
+                // need the after image
+                a: {
+                  $cond: {
+                    if: { $ne: ["$u", "$$REMOVE"] },
+                    then: "$$REMOVE",
+                    else: "$a",
+                  },
+                },
+                // We don't need the object id for replacements
+                // It is in the after image anyway
+                id: {
+                  $cond: {
+                    if: { $ne: ["$u", "$$REMOVE"] },
+                    then: "$b._id",
+                    else: "$$REMOVE",
+                  },
+                },
               },
             },
           ],
           { readConcern: ReadConcernLevel.majority }
         )
         .map((x) => {
-          return { op: "u" as const, ...c2aschema.parse(x) };
+          return c2aschema.parse(x);
         })
         [Symbol.asyncIterator]()
     )
@@ -340,10 +383,12 @@ export async function* dripCEAResume(
       c3,
       // updates
       c2a,
-      // additions due to document updates (might need to be cleaned of updates,
-      // we do not invert all pipelines)
+      // additions due to document updates
+      // (might need to be cleaned of updates, we do not invert
+      // all pipelines)
       ...c2bs,
-      // subtractions due to document updates (when cleaned of updates)
+      // subtractions due to document updates
+      // (when cleaned of updates)
       c2c,
     ],
     pcseLT
@@ -363,6 +408,15 @@ export async function* dripCEAResume(
         },
         id: cse.id,
       } satisfies CSUpdateEvent;
+    } else if (cse.op === "r") {
+      yield {
+        operationType: "replace",
+        fullDocument: cse.a,
+        cursor: {
+          clusterTime: cse.ct,
+          id: cse._id,
+        },
+      } satisfies CSReplaceEvent;
     } else if (cse.op === "a") {
       yield {
         operationType: "addition",

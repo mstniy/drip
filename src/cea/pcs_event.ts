@@ -28,7 +28,8 @@ export const zodPCSUpdateEvent = zodPCSEventCommon.merge(
     b: z.record(z.string(), z.unknown()),
     a: z.record(z.string(), z.unknown()),
     // update description
-    u: z.record(z.string(), z.unknown()),
+    // absent for updates coming from replace events
+    u: z.record(z.string(), z.unknown()).optional(),
   })
 );
 

@@ -15,6 +15,11 @@ export interface CSUpdateEvent extends CSEventCommon {
   id: unknown;
 }
 
+export interface CSReplaceEvent extends CSEventCommon {
+  operationType: "replace";
+  fullDocument: Record<string, unknown>;
+}
+
 export interface CSSubtractionEvent extends CSEventCommon {
   operationType: "subtraction";
   id: unknown;
@@ -27,5 +32,6 @@ export interface CSNoopEvent extends CSEventCommon {
 export type CSEvent =
   | CSAdditionEvent
   | CSUpdateEvent
+  | CSReplaceEvent
   | CSSubtractionEvent
   | CSNoopEvent;

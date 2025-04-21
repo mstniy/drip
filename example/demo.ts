@@ -89,6 +89,11 @@ async function* sync() {
         subset[todo._id.toHexString()] = zodTodo.parse(todo);
         break;
       }
+      case "replace": {
+        const todo = zodTodoWithId.parse(c.fullDocument);
+        subset[todo._id.toHexString()] = zodTodo.parse(todo);
+        break;
+      }
       case "subtraction": {
         delete subset[z.instanceof(ObjectId).parse(c.id).toHexString()];
         break;

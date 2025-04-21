@@ -36,6 +36,32 @@ describe("changeEventToPCSEvent", () => {
       o: "i",
     } satisfies PCSInsertionEvent);
   });
+  it("can convert replace events", () => {
+    const id = new ObjectId();
+    const cse = {
+      operationType: "replace",
+      _id: null,
+      collectionUUID: new UUID(),
+      documentKey: { _id: id, foo: "bar" },
+      fullDocument: { _id: id, foo: "bar", b: 0 },
+      fullDocumentBeforeChange: { _id: id, foo: "bar", a: 0 },
+      ns: {
+        coll: "",
+        db: "",
+      },
+      clusterTime: new Timestamp({ t: 5, i: 10 }),
+      wallTime: new Date(),
+    } as const;
+    const res = zodPCSUpdateEvent.parse(changeEventToPCSEvent(cse));
+    assert.deepStrictEqual(res, {
+      _id: res._id,
+      a: cse.fullDocument,
+      b: cse.fullDocumentBeforeChange,
+      ct: cse.clusterTime,
+      k: cse.documentKey,
+      o: "u",
+    } satisfies PCSUpdateEvent);
+  });
   it("can convert update events", () => {
     const id = new ObjectId();
     const cse = {
