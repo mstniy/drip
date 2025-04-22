@@ -1,3 +1,11 @@
+## 0.2.0
+
+- Support for change stream replace events
+- Removed the cluster time from the CEA cursor
+- CSEvent now has a separate field for cluster time
+- dripCEAResume: Tolerate resuming the "head" of the PCS
+- dripCEAResume: Fix rejectIfOlderThan if the cursor is not on a nop
+
 ## 0.1.0 - 2025-04-18
 
 - Avoid using `$or` for tuple comparison. This sometimes confused MongoDB into using an in-memory sort, even if there is an index supporting the sort order. Instead, use multiple individual cursors and append the results.
