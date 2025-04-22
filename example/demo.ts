@@ -1,10 +1,10 @@
-import { MongoClient, ObjectId } from "mongodb";
+import { MongoClient, ObjectId, Timestamp } from "mongodb";
 import {
-  CEACursor,
   CSEvent,
   dripCEAResume,
   dripCEAStart,
   applyUpdateDescription,
+  CEACursor,
 } from "../src";
 import z from "zod";
 import { collName, dbName, mongoURL } from "./constants";
@@ -79,10 +79,10 @@ async function* sync() {
       .map((d) => [d._id.toHexString(), zodTodo.parse(d)] as const)
   );
 
-  let ceaCursor: CEACursor | undefined;
+  let cursorClusterTime: [CEACursor, Timestamp] | undefined;
 
   function handleChange(c: CSEvent) {
-    ceaCursor = c.cursor;
+    cursorClusterTime = [c.cursor, c.clusterTime];
     switch (c.operationType) {
       case "addition": {
         const todo = zodTodoWithId.parse(c.fullDocument);
@@ -128,15 +128,16 @@ async function* sync() {
 
   while (true) {
     let gotMeaningfulChange = false;
-    for await (const c of typeof ceaCursor === "undefined"
+    for await (const c of typeof cursorClusterTime === "undefined"
       ? dripCEAStart(db, collName, ccStart.clusterTime, pipeline)
-      : dripCEAResume(db, collName, ceaCursor, pipeline)) {
+      : dripCEAResume(db, collName, cursorClusterTime[0], pipeline)) {
       if (c.operationType !== "noop") {
         gotMeaningfulChange = true;
       }
+
       handleChange(c);
     }
-    const isConsistent = ceaCursor && ceaCursor.clusterTime.gte(ccEnd);
+    const isConsistent = cursorClusterTime && cursorClusterTime[1].gte(ccEnd);
     if (isConsistent && (gotMeaningfulChange || !yielded)) {
       yielded = true;
       yield subset;

@@ -13,7 +13,6 @@ import { CEACursor } from "./cea_cursor";
 import { streamAppend, streamSquashMerge, streamTake } from "./stream_algebra";
 import { PCSEventCommon } from "./pcs_event";
 import { oidLT } from "./oid_less";
-import { minOID } from "./min_oid";
 import { derivePCSCollName } from "./derive_pcs_coll_name";
 import { scopeStages } from "./scope_ppl/scope_stage";
 import { invertPipeline } from "./invert_ppl";
@@ -29,20 +28,41 @@ function pcseLT(
   return a.ct.lt(b.ct) || (a.ct.eq(b.ct) && oidLT(a._id, b._id));
 }
 
-export function dripCEAStart(
+export async function* dripCEAStart(
   db: Db,
   collectionName: string,
   ccStart: Timestamp,
   pipeline: Readonly<DripPipeline>,
   processingPipeline?: Readonly<DripProcessingPipeline>,
-  options?: CEAOptions
+  options?: Readonly<CEAOptions>
 ): AsyncGenerator<CSEvent, void, void> {
-  return dripCEAResume(
+  const pcseId = z
+    .object({ _id: z.instanceof(ObjectId) })
+    .optional()
+    .parse(
+      (
+        await db
+          .collection(derivePCSCollName(collectionName))
+          .find(
+            { ct: { $lt: ccStart } },
+            { readConcern: ReadConcernLevel.majority }
+          )
+          .sort({ ct: -1, _id: -1 })
+          .project({ _id: 1 })
+          .limit(1)
+          .toArray()
+      )[0]
+    )?._id;
+
+  if (!pcseId) {
+    throw new CEACursorNotFoundError();
+  }
+
+  yield* dripCEAResume(
     db,
     collectionName,
     {
-      clusterTime: ccStart,
-      id: minOID,
+      id: pcseId,
     },
     pipeline,
     processingPipeline,
@@ -56,7 +76,7 @@ export async function* dripCEAResume(
   cursor: CEACursor,
   pipeline: Readonly<DripPipeline>,
   processingPipeline?: Readonly<DripProcessingPipeline>,
-  options?: CEAOptions
+  options?: Readonly<CEAOptions>
 ): AsyncGenerator<CSEvent, void, void> {
   const pipelineParsed = parsePipeline(pipeline);
   const pipelineScopedToAfter = synthPipeline(scopeStages(pipelineParsed, "a"));
@@ -70,69 +90,88 @@ export async function* dripCEAResume(
   ).map((ppl) => ppl.map(synthStage));
   const coll = db.collection(derivePCSCollName(collectionName));
 
-  const minCT = z
-    .array(
-      z.object({
-        ct: z.instanceof(Timestamp),
-      })
-    )
-    .parse(
-      await coll
-        .find({}, { readConcern: ReadConcernLevel.majority })
-        .sort({ ct: 1 })
-        .limit(1)
-        .project({ _id: 0, ct: 1 })
-        .toArray()
-    )[0]?.ct;
-
   const maxCT = z
-    .array(
-      z.object({
-        ct: z.instanceof(Timestamp),
-      })
-    )
+    .object({
+      ct: z.instanceof(Timestamp),
+    })
+    .optional()
     .parse(
-      await coll
-        .find({}, { readConcern: ReadConcernLevel.majority })
-        .sort({ ct: -1 })
-        .limit(1)
-        .project({ _id: 0, ct: 1 })
-        .toArray()
-    )[0]?.ct;
+      (
+        await coll
+          .find({}, { readConcern: ReadConcernLevel.majority })
+          .sort({ ct: -1 })
+          .limit(1)
+          .project({ _id: 0, ct: 1 })
+          .toArray()
+      )[0]
+    )?.ct;
 
-  if (typeof minCT === "undefined" || typeof maxCT === "undefined") {
+  if (typeof maxCT === "undefined") {
     // No PCS entries yet
     return;
   }
 
-  if (!cursor.clusterTime.gt(minCT)) {
+  const cursorEvent = z
+    .object({
+      ct: z.instanceof(Timestamp),
+      w: z.date().optional(),
+    })
+    .optional()
+    .parse(
+      (
+        await coll
+          .find(
+            { _id: { $eq: cursor.id } },
+            { readConcern: ReadConcernLevel.majority }
+          )
+          .project({
+            _id: 0,
+            ct: 1,
+            w: 1,
+          })
+          .toArray()
+      )[0]
+    );
+
+  if (typeof cursorEvent === "undefined") {
     throw new CEACursorNotFoundError();
   }
 
-  if (!cursor.clusterTime.lt(maxCT)) {
+  // The reasoning is that the "tail" of the PCS
+  // might be incomplete, as the persister does not
+  // transactionally insert all PCS events with the
+  // same CT.
+  if (!cursorEvent.ct.lt(maxCT)) {
     return;
   }
 
   if (options?.rejectIfOlderThan) {
     const riot = options.rejectIfOlderThan;
-    const cursorEventW = z
-      .array(
-        z.object({
-          w: z.instanceof(Date),
-        })
-      )
-      .parse(
-        await coll
-          .find({ _id: cursor.id }, { readConcern: ReadConcernLevel.majority })
-          .project({ _id: 0, w: 1 })
-          .toArray()
-      )[0]?.w;
+    const cursorEventWLB =
+      // If the event we have fetched has a wall clock, use it
+      // Otherwise, find the closest nop event older than the cursor
+      cursorEvent.w ??
+      z
+        .array(
+          z.object({
+            w: z.instanceof(Date),
+          })
+        )
+        .parse(
+          await coll
+            .find(
+              // The wall clock only exists for nops
+              { o: "n", ct: { $lte: cursorEvent.ct } },
+              { readConcern: ReadConcernLevel.majority }
+            )
+            .project({ _id: 0, w: 1 })
+            .limit(1)
+            .toArray()
+        )[0]?.w;
 
-    if (!cursorEventW) {
-      throw new CEACursorNotFoundError();
-    }
-
-    if (cursorEventW < riot) {
+    // Prudently, we assume the cursor might be too old
+    // if we don't have a lower bound on its wall clock.
+    if (!cursorEventWLB || cursorEventWLB < riot) {
       throw new CEACursorTooOldError();
     }
   }
@@ -144,14 +183,14 @@ export async function* dripCEAResume(
   const matchRelevantEvents = [
     {
       ct: {
-        $eq: cursor.clusterTime,
+        $eq: cursorEvent.ct,
       },
       _id: { $gt: cursor.id },
     },
     {
       ct: {
         $lt: maxCT,
-        $gt: cursor.clusterTime,
+        $gt: cursorEvent.ct,
       },
     },
   ];
@@ -403,38 +442,38 @@ export async function* dripCEAResume(
         operationType: "update",
         updateDescription: cse.u,
         cursor: {
-          clusterTime: cse.ct,
           id: cse._id,
         },
         id: cse.id,
+        clusterTime: cse.ct,
       } satisfies CSUpdateEvent;
     } else if (cse.op === "r") {
       yield {
         operationType: "replace",
         fullDocument: cse.a,
         cursor: {
-          clusterTime: cse.ct,
           id: cse._id,
         },
+        clusterTime: cse.ct,
       } satisfies CSReplaceEvent;
     } else if (cse.op === "a") {
       yield {
         operationType: "addition",
         fullDocument: cse.a,
         cursor: {
-          clusterTime: cse.ct,
           id: cse._id,
         },
+        clusterTime: cse.ct,
       } satisfies CSAdditionEvent;
     } else {
       cse.op satisfies "s";
       yield {
         operationType: "subtraction",
         cursor: {
-          clusterTime: cse.ct,
           id: cse._id,
         },
         id: cse.id,
+        clusterTime: cse.ct,
       } satisfies CSSubtractionEvent;
     }
   }
@@ -475,9 +514,9 @@ export async function* dripCEAResume(
             return {
               operationType: "noop" as const,
               cursor: {
-                clusterTime: x.ct,
                 id: x._id,
               },
+              clusterTime: x.ct,
             } satisfies CSNoopEvent;
           })
           [Symbol.asyncIterator]()

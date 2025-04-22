@@ -1,7 +1,9 @@
+import { Timestamp } from "mongodb";
 import { CEACursor } from "./cea_cursor";
 
 export interface CSEventCommon {
   cursor: CEACursor;
+  clusterTime: Timestamp;
 }
 
 export interface CSAdditionEvent extends CSEventCommon {

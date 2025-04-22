@@ -21,7 +21,6 @@ import {
   CEACursorNotFoundError,
   CEACursorTooOldError,
 } from "../../src/cea/cea";
-import { minOID } from "../../src/cea/min_oid";
 import { genToArray } from "../test_utils/gen_to_array";
 import { openTestDB } from "../test_utils/open_test_db";
 import { getRandomString } from "../test_utils/random_string";
@@ -89,9 +88,9 @@ describe("dripCEAStart", () => {
     assert.deepStrictEqual(res, [
       {
         cursor: {
-          clusterTime: events[3].ct,
           id: events[3]._id,
         },
+        clusterTime: events[3].ct,
         fullDocument: events[3].a,
         operationType: "addition",
       } satisfies CSAdditionEvent,
@@ -119,12 +118,6 @@ describe("dripCEAStart", () => {
     } catch (e) {
       assert(e instanceof CEACursorNotFoundError);
     }
-  });
-  it("yields nothing if there are no persisted events", async () => {
-    const res = await genToArray(
-      dripCEAStart(db, "no_such_collection", new Timestamp({ t: 0, i: 0 }), [])
-    );
-    assert(res.length === 0);
   });
 });
 
@@ -244,89 +237,58 @@ describe("dripCEAResume", () => {
         db,
         "no_such_collection",
         {
-          clusterTime: new Timestamp({ t: 1000, i: 0 }),
-          id: minOID,
+          id: new ObjectId(),
         },
         []
       )
     );
     assert.equal(res.length, 0);
   });
-  it("yields nothing if given time is too recent", async () => {
-    const res = await genToArray(
-      dripCEAResume(
-        db,
-        collectionName,
-        {
-          clusterTime: new Timestamp({ t: events[12].ct.t + 1, i: 0 }),
-          id: minOID,
-        },
-        []
-      )
-    );
-    assert.equal(res.length, 0);
+  it("yields nothing if passed the tail of the pcs", async () => {
+    // The last two events are the tail
+    for (const id of [events[11]._id, events[12]._id]) {
+      const res = await genToArray(
+        dripCEAResume(
+          db,
+          collectionName,
+          {
+            id: id,
+          },
+          []
+        )
+      );
+      assert.equal(res.length, 0);
+    }
   });
-  it("throws if passed the smallest cluster time or smaller", async (t) => {
-    for (const [testName, ct] of [
-      ["smaller", new Timestamp({ t: 1740050683, i: 0 })],
-      ["smallest", new Timestamp({ t: 1740050684, i: 0 })],
-    ] as const) {
-      await t.test(testName, async () => {
-        try {
-          await genToArray(
-            dripCEAResume(
-              db,
-              collectionName,
-              {
-                clusterTime: ct,
-                id: minOID,
-              },
-              []
-            )
-          );
-          assert(false, "must have thrown");
-        } catch (e) {
-          assert(e instanceof CEACursorNotFoundError);
-        }
-      });
+  it("throws if the given PCS event cannot be found", async () => {
+    try {
+      await genToArray(
+        dripCEAResume(
+          db,
+          collectionName,
+          {
+            id: new ObjectId(),
+          },
+          []
+        )
+      );
+      assert(false, "must have thrown");
+    } catch (e) {
+      assert(e instanceof CEACursorNotFoundError);
     }
   });
   it("throws if the cursor is too old", async () => {
-    try {
-      await genToArray(
-        dripCEAResume(
-          db,
-          collectionName,
-          { clusterTime: events[9].ct, id: events[9]._id },
-          [],
-          undefined,
-          {
+    for (const event of [events[8], events[9]]) {
+      try {
+        await genToArray(
+          dripCEAResume(db, collectionName, { id: event._id }, [], undefined, {
             rejectIfOlderThan: incrementDate(events[9].w),
-          }
-        )
-      );
-      assert(false, "Must have thrown");
-    } catch (e) {
-      assert(e instanceof CEACursorTooOldError);
-    }
-  });
-  it("throws if rejectIfOlderThan is given bu the cursor does not exist", async () => {
-    try {
-      await genToArray(
-        dripCEAResume(
-          db,
-          collectionName,
-          { clusterTime: events[9].ct, id: minOID },
-          [],
-          undefined,
-          {
-            rejectIfOlderThan: new Date(),
-          }
-        )
-      );
-      assert(false, "Must have thrown");
-    } catch (e) {
-      assert(e instanceof CEACursorNotFoundError);
+          })
+        );
+        assert(false, "Must have thrown");
+      } catch (e) {
+        assert(e instanceof CEACursorTooOldError);
+      }
     }
   });
   it("starts at the given cursor", async () => {
@@ -335,7 +297,6 @@ describe("dripCEAResume", () => {
         db,
         collectionName,
         {
-          clusterTime: events[7].ct,
           id: events[7]._id,
         },
         []
@@ -344,18 +305,18 @@ describe("dripCEAResume", () => {
     assert.deepStrictEqual(res, [
       {
         cursor: {
-          clusterTime: events[8].ct,
           id: events[8]._id,
         },
         updateDescription: events[8].u,
         operationType: "update",
         id: events[8].b._id,
+        clusterTime: events[8].ct,
       } satisfies CSUpdateEvent,
       {
         cursor: {
-          clusterTime: events[10].ct,
           id: events[10]._id,
         },
+        clusterTime: events[10].ct,
         operationType: "noop",
       } satisfies CSNoopEvent,
     ]);
@@ -366,8 +327,7 @@ describe("dripCEAResume", () => {
         db,
         collectionName,
         {
-          clusterTime: events[1].ct,
-          id: minOID,
+          id: events[0]._id,
         },
         [{ $match: { a: 0 } }],
         [{ $addFields: { hey: 0 } }]
@@ -378,9 +338,9 @@ describe("dripCEAResume", () => {
       // insertion of a relevant object is an addition
       {
         cursor: {
-          clusterTime: events[1].ct,
           id: events[1]._id,
         },
+        clusterTime: events[1].ct,
         fullDocument: { ...events[1].a, hey: 0 },
         operationType: "addition",
       } satisfies CSAdditionEvent,
@@ -388,9 +348,9 @@ describe("dripCEAResume", () => {
       // deletion of a relevant object is a subtraction
       {
         cursor: {
-          clusterTime: events[3].ct,
           id: events[3]._id,
         },
+        clusterTime: events[3].ct,
         id: events[3].b._id,
         operationType: "subtraction",
       } satisfies CSSubtractionEvent,
@@ -399,27 +359,27 @@ describe("dripCEAResume", () => {
       // this is a replacement, like the underlying pcs event
       {
         cursor: {
-          clusterTime: events[5].ct,
           id: events[5]._id,
         },
+        clusterTime: events[5].ct,
         fullDocument: { ...events[5].a, hey: 0 },
         operationType: "replace",
       } satisfies CSReplaceEvent,
       // update of a relevant object is a sutraction, if it is not relevant anymore
       {
         cursor: {
-          clusterTime: events[6].ct,
           id: events[6]._id,
         },
+        clusterTime: events[6].ct,
         id: events[6].b._id,
         operationType: "subtraction",
       } satisfies CSSubtractionEvent,
       // update of an irrelevant object is an addition, if it was not relevant
       {
         cursor: {
-          clusterTime: events[7].ct,
           id: events[7]._id,
         },
+        clusterTime: events[7].ct,
         fullDocument: { ...events[7].a, hey: 0 },
         operationType: "addition",
       } satisfies CSAdditionEvent,
@@ -427,9 +387,9 @@ describe("dripCEAResume", () => {
       // events[9] is omitted: it is a noop event which is not the latest one
       {
         cursor: {
-          clusterTime: events[10].ct,
           id: events[10]._id,
         },
+        clusterTime: events[10].ct,
         operationType: "noop",
       } satisfies CSNoopEvent,
       // events[11] and events[12] are omitted: they have the largest cluster time, so we ignore them
@@ -442,7 +402,6 @@ describe("dripCEAResume", () => {
           db,
           collectionName,
           {
-            clusterTime: events[8].ct,
             id: events[8]._id,
           },
           []
@@ -452,9 +411,9 @@ describe("dripCEAResume", () => {
       assert.deepStrictEqual(res, [
         {
           cursor: {
-            clusterTime: events[10].ct,
             id: events[10]._id,
           },
+          clusterTime: events[10].ct,
           operationType: "noop",
         } satisfies CSNoopEvent,
       ]);
@@ -502,7 +461,6 @@ describe("dripCEAResume", () => {
           db,
           collectionName,
           {
-            clusterTime: events[1].ct,
             id: events[1]._id,
           },
           []
@@ -512,9 +470,9 @@ describe("dripCEAResume", () => {
       assert.deepStrictEqual(res, [
         {
           cursor: {
-            clusterTime: events[3].ct,
             id: events[3]._id,
           },
+          clusterTime: events[3].ct,
           fullDocument: events[3].a,
           operationType: "addition",
         } satisfies CSAdditionEvent,
