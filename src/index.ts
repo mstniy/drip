@@ -7,3 +7,4 @@ export * from "./cea/cs_event";
 export { type CEAOptions } from "./cea/options";
 export * from "./drip_pipeline";
 export { runPersister } from "./persister/persister";
+export { expirePCSEvents } from "./cleaner/cleaner";
