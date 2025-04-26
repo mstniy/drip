@@ -37,6 +37,17 @@ function assertUniqueNoops(buffer: PCSEvent[]) {
     });
 }
 
+// This assumes the buffer is non-decreasing
+function assertInfrequentNoops(buffer: PCSEvent[]) {
+  buffer
+    // Only keep the noops
+    .filter((x) => x.o === "n")
+    .reduce((a, b) => {
+      assert(b.w.getTime() - a.w.getTime() > 5000, "must be infrequent");
+      return b;
+    });
+}
+
 function checkPCSInvariants(buffer: PCSEvent[]) {
   // Assert that the PCS events were created in
   // non-decreasing CT order
@@ -45,6 +56,10 @@ function checkPCSInvariants(buffer: PCSEvent[]) {
   // Assert that noops are unique
   // per cluster time t field
   assertUniqueNoops(buffer);
+
+  // Assert that noops do not occur
+  // too frequently
+  assertInfrequentNoops(buffer);
 }
 
 describe("self test", () => {
@@ -157,62 +172,18 @@ describe("self test", () => {
         );
       }
     });
-  });
-  it("passes for a list with one noop", () => {
-    assertUniqueNoops([
-      {
-        _id: new ObjectId(),
-        ct: new Timestamp({ t: 0, i: 0 }),
-        o: "n",
-        w: new Date(),
-      },
-    ]);
-  });
-  it("passes for a list with nops on unique t-s", () => {
-    assertUniqueNoops([
-      {
-        _id: new ObjectId(),
-        ct: new Timestamp({ t: 0, i: 0 }),
-        o: "n",
-        w: new Date(),
-      },
-      {
-        _id: new ObjectId(),
-        ct: new Timestamp({ t: 1, i: 0 }),
-        o: "n",
-        w: new Date(),
-      },
-      {
-        _id: new ObjectId(),
-        ct: new Timestamp({ t: 2, i: 0 }),
-        o: "n",
-        w: new Date(),
-      },
-    ]);
-  });
-  it("fails for a list with nops on identical t-s", () => {
-    const cases: PCSEvent[][] = [
-      [
+    it("passes for a list with one noop", () => {
+      assertUniqueNoops([
         {
           _id: new ObjectId(),
           ct: new Timestamp({ t: 0, i: 0 }),
           o: "n",
           w: new Date(),
         },
-        {
-          _id: new ObjectId(),
-          ct: new Timestamp({ t: 0, i: 0 }),
-          o: "n",
-          w: new Date(),
-        },
-        {
-          _id: new ObjectId(),
-          ct: new Timestamp({ t: 1, i: 0 }),
-          o: "n",
-          w: new Date(),
-        },
-      ],
-      [
+      ]);
+    });
+    it("passes for a list with nops on unique t-s", () => {
+      assertUniqueNoops([
         {
           _id: new ObjectId(),
           ct: new Timestamp({ t: 0, i: 0 }),
@@ -227,20 +198,180 @@ describe("self test", () => {
         },
         {
           _id: new ObjectId(),
-          ct: new Timestamp({ t: 1, i: 0 }),
+          ct: new Timestamp({ t: 2, i: 0 }),
           o: "n",
           w: new Date(),
         },
-      ],
-    ];
-    for (const c of cases) {
+      ]);
+    });
+    it("fails for a list with nops on identical t-s", () => {
+      const cases: PCSEvent[][] = [
+        [
+          {
+            _id: new ObjectId(),
+            ct: new Timestamp({ t: 0, i: 0 }),
+            o: "n",
+            w: new Date(),
+          },
+          {
+            _id: new ObjectId(),
+            ct: new Timestamp({ t: 0, i: 0 }),
+            o: "n",
+            w: new Date(),
+          },
+          {
+            _id: new ObjectId(),
+            ct: new Timestamp({ t: 1, i: 0 }),
+            o: "n",
+            w: new Date(),
+          },
+        ],
+        [
+          {
+            _id: new ObjectId(),
+            ct: new Timestamp({ t: 0, i: 0 }),
+            o: "n",
+            w: new Date(),
+          },
+          {
+            _id: new ObjectId(),
+            ct: new Timestamp({ t: 1, i: 0 }),
+            o: "n",
+            w: new Date(),
+          },
+          {
+            _id: new ObjectId(),
+            ct: new Timestamp({ t: 1, i: 0 }),
+            o: "n",
+            w: new Date(),
+          },
+        ],
+      ];
+      for (const c of cases) {
+        try {
+          assertUniqueNoops(c);
+          assert(false, "must have thrown");
+        } catch (e) {
+          assert(e instanceof AssertionError && e.message === "must be unique");
+        }
+      }
+    });
+  });
+  describe("assertInfrequentNoops", () => {
+    it("fails for an empty list", () => {
       try {
-        assertUniqueNoops(c);
+        assertInfrequentNoops([]);
         assert(false, "must have thrown");
       } catch (e) {
-        assert(e instanceof AssertionError && e.message === "must be unique");
+        assert(
+          e instanceof TypeError &&
+            e.message === "Reduce of empty array with no initial value"
+        );
       }
-    }
+    });
+    it("fails for a list with no noops", () => {
+      try {
+        assertInfrequentNoops([
+          {
+            _id: new ObjectId(),
+            o: "d",
+            ct: new Timestamp({ t: 0, i: 0 }),
+            k: {},
+            b: {},
+          },
+        ]);
+        assert(false, "must have thrown");
+      } catch (e) {
+        assert(
+          e instanceof TypeError &&
+            e.message === "Reduce of empty array with no initial value"
+        );
+      }
+    });
+    it("passes for a list with one noop", () => {
+      assertInfrequentNoops([
+        {
+          _id: new ObjectId(),
+          ct: new Timestamp({ t: 0, i: 0 }),
+          o: "n",
+          w: new Date(),
+        },
+      ]);
+    });
+    it("passes for a list with well-spaced nops", () => {
+      assertInfrequentNoops([
+        {
+          _id: new ObjectId(),
+          ct: new Timestamp({ t: 0, i: 0 }),
+          o: "n",
+          w: new Date("2025-01-01"),
+        },
+        {
+          _id: new ObjectId(),
+          ct: new Timestamp({ t: 0, i: 0 }),
+          o: "n",
+          w: new Date("2025-01-02"),
+        },
+        {
+          _id: new ObjectId(),
+          ct: new Timestamp({ t: 0, i: 0 }),
+          o: "n",
+          w: new Date("2025-01-03"),
+        },
+      ]);
+    });
+    it("fails for a list with too close noops", () => {
+      const cases: PCSEvent[][] = [
+        [
+          {
+            _id: new ObjectId(),
+            ct: new Timestamp({ t: 0, i: 0 }),
+            o: "n",
+            w: new Date("2025-01-01"),
+          },
+          {
+            _id: new ObjectId(),
+            ct: new Timestamp({ t: 0, i: 0 }),
+            o: "n",
+            w: new Date("20205-01-02"),
+          },
+          {
+            _id: new ObjectId(),
+            ct: new Timestamp({ t: 0, i: 0 }),
+            o: "n",
+            w: new Date("20205-01-02"),
+          },
+        ],
+        [
+          {
+            _id: new ObjectId(),
+            ct: new Timestamp({ t: 0, i: 0 }),
+            o: "n",
+            w: new Date("20205-01-01"),
+          },
+          {
+            _id: new ObjectId(),
+            ct: new Timestamp({ t: 0, i: 0 }),
+            o: "n",
+            w: new Date("20205-01-01"),
+          },
+          {
+            _id: new ObjectId(),
+            ct: new Timestamp({ t: 0, i: 0 }),
+            o: "n",
+            w: new Date("20205-01-02"),
+          },
+        ],
+      ];
+      for (const c of cases) {
+        try {
+          assertUniqueNoops(c);
+          assert(false, "must have thrown");
+        } catch (e) {
+          assert(e instanceof AssertionError && e.message === "must be unique");
+        }
+      }
+    });
   });
 });
 
