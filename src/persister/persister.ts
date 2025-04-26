@@ -1,10 +1,4 @@
-import {
-  Collection,
-  MongoClient,
-  ObjectId,
-  ReadConcernLevel,
-  Timestamp,
-} from "mongodb";
+import { Collection, MongoClient, ObjectId, ReadConcernLevel } from "mongodb";
 import { derivePCSCollName } from "../cea/derive_pcs_coll_name";
 import { changeEventToPCSEvent } from "./change_event_to_pcs_event";
 import {
@@ -14,9 +8,8 @@ import {
 } from "../cea/metadata";
 import { PromiseTrain } from "./promise_train";
 import { PCSEventCommon, PCSNoopEvent } from "../cea/pcs_event";
-import { decodeResumeToken } from "mongodb-resumetoken-decoder";
-import z from "zod";
 import { FlushBuffer } from "./flush_buffer";
+import { noopyCS } from "./noopy_change_stream";
 
 export interface PersisterOptions {
   maxAwaitTimeMS?: number;
@@ -80,10 +73,6 @@ export async function* runPersister(
   )[0]?.resumeToken;
 
   const MAX_BUFFER_LENGTH = 1000;
-  const maxAwaitTimeMS =
-    typeof options?.maxAwaitTimeMS === "undefined"
-      ? 10000
-      : options.maxAwaitTimeMS;
 
   let lastResumeToken: unknown;
   const flushBuffer = new FlushBuffer<PCSEventCommon>(
@@ -107,69 +96,35 @@ export async function* runPersister(
       fullDocumentBeforeChange: "required",
       resumeAfter: persistedResumeToken,
       readConcern: ReadConcernLevel.majority,
-      maxAwaitTimeMS,
+      ...(typeof options?.maxAwaitTimeMS === "number"
+        ? { maxAwaitTimeMS: options.maxAwaitTimeMS }
+        : {}),
     }
   );
 
+  const ncs = noopyCS(cs);
+
   try {
-    cs.on("resumeTokenChanged", (async (resumeToken) => {
-      // The Mongo node driver has a flaw for change stream where
-      // it calls resumeTokenChanged before actually reporting
-      // the change event to the user. Thus, naively
-      // relying on resumeTokenChanged to keep track of the
-      // resume token is racy. Hence, we delay persisting the
-      // received resume token by two microtasks.
-      // Two microtasks are enough because:
-      // - The loop on the change stream has one microtask
-      // delay between it receiving the change from next()
-      // and passing it along to the flush buffer.
-      // - The implementation of next() also does not have
-      // any microtask delays between it emitting the
-      // resumeTokenChanged event and returning the change.
-      // See https://github.com/mongodb/node-mongodb-native/blob/44bc5a880230a5be93afc9e2a4fa0a4586481edd/src/change_stream.ts#L746
-      await Promise.resolve();
-      await Promise.resolve();
-      const newResumeTokenData = z
-        .string()
-        .parse((resumeToken as Record<string, unknown>)["_data"]);
-      if (
-        newResumeTokenData !==
-        ((lastResumeToken as Record<string, unknown> | undefined) ?? {})[
-          "_data"
-        ]
-      ) {
-        lastResumeToken = resumeToken;
-        const decoded = decodeResumeToken(newResumeTokenData);
-        const event = {
+    for await (const event of ncs) {
+      if (event.type === "nothing") {
+        // This lets the caller stop us gracefully
+        yield;
+      } else if (event.type === "noop") {
+        const noop = {
           _id: new ObjectId(),
-          // mongodb-resumetoken-decoder and the actual driver use
-          // incompatible bson versions, so translate between
-          // the two
-          ct: Timestamp.fromBits(decoded.timestamp.low, decoded.timestamp.high),
+          ct: event.ct,
           o: "n",
           w: new Date(),
         } satisfies PCSNoopEvent;
-        // Awaiting this would be meaningless
-        // as we are inside an EventEmitter
-        // callback
-        void flushBuffer.push(event);
-      }
-    }) as (rt: unknown) => void);
+        await flushBuffer.push(noop);
+      } else {
+        event.type satisfies "change";
 
-    while (true) {
-      yield;
-      // Use tryNext instead of next to make the
-      // query return if there are still no events
-      // after maxAwaitTimeMS.
-      // We use this to avoid getting stuck on a
-      // single next(), as we do want to yield
-      // periodically.
-      const ce = await cs.tryNext();
-      if (!ce) continue;
-      const pcse = changeEventToPCSEvent(ce);
-      if (typeof pcse !== "undefined") {
-        lastResumeToken = ce._id;
-        await flushBuffer.push(pcse);
+        const pcse = changeEventToPCSEvent(event.change);
+        if (typeof pcse !== "undefined") {
+          lastResumeToken = event.change._id;
+          await flushBuffer.push(pcse);
+        }
       }
     }
   } finally {
