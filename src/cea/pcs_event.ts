@@ -1,7 +1,7 @@
 import { ObjectId, Timestamp } from "mongodb";
 import z from "zod";
 
-export const zodPCSEventCommon = z.object({
+const zodPCSEventCommon = z.object({
   _id: z.instanceof(ObjectId),
   // cluster time
   ct: z.instanceof(Timestamp),
@@ -50,8 +50,12 @@ export const zodPCSNoopEvent = zodPCSEventCommon.merge(
   })
 );
 
-export type PCSEventCommon = z.infer<typeof zodPCSEventCommon>;
+export const zodPCSEvent = zodPCSDeletionEvent.or(
+  zodPCSInsertionEvent.or(zodPCSUpdateEvent.or(zodPCSNoopEvent))
+);
+
 export type PCSInsertionEvent = z.infer<typeof zodPCSInsertionEvent>;
 export type PCSUpdateEvent = z.infer<typeof zodPCSUpdateEvent>;
 export type PCSDeletionEvent = z.infer<typeof zodPCSDeletionEvent>;
 export type PCSNoopEvent = z.infer<typeof zodPCSNoopEvent>;
+export type PCSEvent = z.infer<typeof zodPCSEvent>;

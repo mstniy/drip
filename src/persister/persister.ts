@@ -13,7 +13,7 @@ import {
   zodDripMetadata,
 } from "../cea/metadata";
 import { PromiseTrain } from "./promise_train";
-import { PCSEventCommon, PCSNoopEvent } from "../cea/pcs_event";
+import { PCSEvent, PCSNoopEvent } from "../cea/pcs_event";
 import { FlushBuffer } from "./flush_buffer";
 import { noopyCS } from "./noopy_change_stream";
 
@@ -40,7 +40,7 @@ export async function* runPersister(
   );
 
   async function pushPCSEventsUpdateMetadata(
-    events: [ResumeToken, PCSEventCommon][]
+    events: [ResumeToken, PCSEvent][]
   ) {
     if (events.length > 0) {
       await promiseTrain.push(() =>
@@ -88,7 +88,7 @@ export async function* runPersister(
 
   const MAX_BUFFER_LENGTH = 1000;
 
-  const flushBuffer = new FlushBuffer<[ResumeToken, PCSEventCommon]>(
+  const flushBuffer = new FlushBuffer<[ResumeToken, PCSEvent]>(
     MAX_BUFFER_LENGTH,
     (events) => pushPCSEventsUpdateMetadata(events)
   );

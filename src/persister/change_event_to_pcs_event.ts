@@ -1,7 +1,7 @@
 import { ChangeStreamDocument, ObjectId, Timestamp } from "mongodb";
 import {
   PCSDeletionEvent,
-  PCSEventCommon,
+  PCSEvent,
   PCSInsertionEvent,
   PCSUpdateEvent,
 } from "../cea/pcs_event";
@@ -11,7 +11,7 @@ import { strict as assert } from "assert";
 
 export function changeEventToPCSEvent(
   ce: ChangeStreamDocument
-): PCSEventCommon | undefined {
+): PCSEvent | undefined {
   if (ce.operationType === "insert") {
     const res = {
       _id: new ObjectId(),

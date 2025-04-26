@@ -11,7 +11,7 @@ import { DripPipeline, DripProcessingPipeline } from "../drip_pipeline";
 import z from "zod";
 import { CEACursor } from "./cea_cursor";
 import { streamAppend, streamSquashMerge, streamTake } from "./stream_algebra";
-import { PCSEventCommon } from "./pcs_event";
+import { PCSEvent } from "./pcs_event";
 import { oidLT } from "./oid_less";
 import { derivePCSCollName } from "./derive_pcs_coll_name";
 import { scopeStages } from "./scope_ppl/scope_stage";
@@ -22,8 +22,8 @@ import { stripToGate } from "./strip_to_gate";
 import { CEAOptions } from "./options";
 
 function pcseLT(
-  a: Pick<PCSEventCommon, "ct" | "_id">,
-  b: Pick<PCSEventCommon, "ct" | "_id">
+  a: Pick<PCSEvent, "ct" | "_id">,
+  b: Pick<PCSEvent, "ct" | "_id">
 ) {
   return a.ct.lt(b.ct) || (a.ct.eq(b.ct) && oidLT(a._id, b._id));
 }

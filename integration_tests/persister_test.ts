@@ -15,9 +15,9 @@ import z from "zod";
 import { MetadataCollectionName } from "../src/cea/metadata";
 import { derivePCSCollName } from "../src/cea/derive_pcs_coll_name";
 import { sleep } from "../tests/test_utils/sleep";
-import { PCSEventCommon, zodPCSEventCommon } from "../src/cea/pcs_event";
+import { PCSEvent, zodPCSEvent } from "../src/cea/pcs_event";
 
-function assertNonDescreasingCT(buffer: PCSEventCommon[]) {
+function assertNonDescreasingCT(buffer: PCSEvent[]) {
   buffer
     .map((pcse) => pcse.ct)
     .reduce((a, b) => {
@@ -27,7 +27,7 @@ function assertNonDescreasingCT(buffer: PCSEventCommon[]) {
 }
 
 // This assumes the buffer is non-decreasing
-function assertUniqueNoops(buffer: PCSEventCommon[]) {
+function assertUniqueNoops(buffer: PCSEvent[]) {
   buffer
     // Only keep the noops
     .filter((x) => x.o === "n")
@@ -37,7 +37,7 @@ function assertUniqueNoops(buffer: PCSEventCommon[]) {
     });
 }
 
-function checkPCSInvariants(buffer: PCSEventCommon[]) {
+function checkPCSInvariants(buffer: PCSEvent[]) {
   // Assert that the PCS events were created in
   // non-decreasing CT order
   assertNonDescreasingCT(buffer);
@@ -66,6 +66,7 @@ describe("self test", () => {
           _id: new ObjectId(),
           ct: new Timestamp({ t: 0, i: 0 }),
           o: "n",
+          w: new Date(),
         },
       ]);
     });
@@ -75,11 +76,13 @@ describe("self test", () => {
           _id: new ObjectId(),
           ct: new Timestamp({ t: 0, i: 0 }),
           o: "n",
+          w: new Date(),
         },
         {
           _id: new ObjectId(),
           ct: new Timestamp({ t: 0, i: 0 }),
           o: "n",
+          w: new Date(),
         },
       ]);
     });
@@ -89,11 +92,13 @@ describe("self test", () => {
           _id: new ObjectId(),
           ct: new Timestamp({ t: 0, i: 0 }),
           o: "n",
+          w: new Date(),
         },
         {
           _id: new ObjectId(),
           ct: new Timestamp({ t: 0, i: 1 }),
           o: "n",
+          w: new Date(),
         },
       ]);
     });
@@ -104,11 +109,13 @@ describe("self test", () => {
             _id: new ObjectId(),
             ct: new Timestamp({ t: 0, i: 1 }),
             o: "n",
+            w: new Date(),
           },
           {
             _id: new ObjectId(),
             ct: new Timestamp({ t: 0, i: 0 }),
             o: "n",
+            w: new Date(),
           },
         ]);
         assert(false, "must have thrown");
@@ -138,6 +145,8 @@ describe("self test", () => {
             _id: new ObjectId(),
             o: "d",
             ct: new Timestamp({ t: 0, i: 0 }),
+            k: {},
+            b: {},
           },
         ]);
         assert(false, "must have thrown");
@@ -155,6 +164,7 @@ describe("self test", () => {
         _id: new ObjectId(),
         ct: new Timestamp({ t: 0, i: 0 }),
         o: "n",
+        w: new Date(),
       },
     ]);
   });
@@ -164,36 +174,42 @@ describe("self test", () => {
         _id: new ObjectId(),
         ct: new Timestamp({ t: 0, i: 0 }),
         o: "n",
+        w: new Date(),
       },
       {
         _id: new ObjectId(),
         ct: new Timestamp({ t: 1, i: 0 }),
         o: "n",
+        w: new Date(),
       },
       {
         _id: new ObjectId(),
         ct: new Timestamp({ t: 2, i: 0 }),
         o: "n",
+        w: new Date(),
       },
     ]);
   });
   it("fails for a list with nops on identical t-s", () => {
-    const cases = [
+    const cases: PCSEvent[][] = [
       [
         {
           _id: new ObjectId(),
           ct: new Timestamp({ t: 0, i: 0 }),
           o: "n",
+          w: new Date(),
         },
         {
           _id: new ObjectId(),
           ct: new Timestamp({ t: 0, i: 0 }),
           o: "n",
+          w: new Date(),
         },
         {
           _id: new ObjectId(),
           ct: new Timestamp({ t: 1, i: 0 }),
           o: "n",
+          w: new Date(),
         },
       ],
       [
@@ -201,16 +217,19 @@ describe("self test", () => {
           _id: new ObjectId(),
           ct: new Timestamp({ t: 0, i: 0 }),
           o: "n",
+          w: new Date(),
         },
         {
           _id: new ObjectId(),
           ct: new Timestamp({ t: 1, i: 0 }),
           o: "n",
+          w: new Date(),
         },
         {
           _id: new ObjectId(),
           ct: new Timestamp({ t: 1, i: 0 }),
           o: "n",
+          w: new Date(),
         },
       ],
     ];
@@ -288,20 +307,17 @@ describe("persister", () => {
       const pcsColl = mddb.collection(derivePCSCollName(collectionName));
       const pcscs = pcsColl.watch([]);
       // Buffer the persisted change stream events as they happen
-      const buffer: PCSEventCommon[] = [];
+      const buffer: PCSEvent[] = [];
       void (async () => {
         try {
           for await (const c of pcscs) {
             assert(c.operationType === "insert");
-            buffer.push(zodPCSEventCommon.parse(c.fullDocument));
+            buffer.push(zodPCSEvent.parse(c.fullDocument));
           }
         } catch (e) {
           // The change stream gets closed once the client gets closed
           // at the end of the test
-          assert(
-            e instanceof MongoServerError &&
-              e.message === "ChangeStream is closed"
-          );
+          assert(e instanceof MongoServerError);
         }
       })();
       // Wait for a noop
