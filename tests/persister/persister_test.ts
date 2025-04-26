@@ -49,7 +49,6 @@ describe("persister", () => {
     );
     while (true) {
       await persister.next();
-      await sleep(50);
     }
   }
 

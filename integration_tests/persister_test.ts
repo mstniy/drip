@@ -380,6 +380,7 @@ describe("persister", () => {
   let db: Db, mddb: Db;
   let collectionName: string;
   let collection: Collection;
+  let stopPersister: { stop: boolean };
   beforeEach(async () => {
     collectionName = getRandomString();
     [client, db, mddb] = await openTestDB();
@@ -389,7 +390,8 @@ describe("persister", () => {
       collMod: collectionName,
       changeStreamPreAndPostImages: { enabled: true },
     });
-    runPersisterDetached().catch((e) =>
+    stopPersister = { stop: false };
+    runPersisterDetached(stopPersister).catch((e) =>
       // The cursor of course gets killed once the client gets closed
       // at the end of the test
       assert(e instanceof MongoServerError && e.codeName === "CursorKilled")
@@ -403,17 +405,19 @@ describe("persister", () => {
       await sleep(500);
     }
   });
-  afterEach(() => client.close());
+  afterEach(async () => {
+    stopPersister.stop = true;
+    await client.close();
+  });
 
-  async function runPersisterDetached() {
+  async function runPersisterDetached(stopPersister: { stop: boolean }) {
     const persister = runPersister(
       client,
       mddb.databaseName,
       db.collection(collectionName)
     );
-    while (true) {
+    while (!stopPersister.stop) {
       await persister.next();
-      await sleep(50);
     }
   }
 
@@ -481,6 +485,47 @@ describe("persister", () => {
       }
       // Wait for another nop
       noopCntBefore = buffer.filter((x) => x.o === "n").length;
+      while (buffer.filter((x) => x.o === "n").length < noopCntBefore + 1) {
+        await sleep(1000);
+      }
+
+      checkPCSInvariants(buffer);
+    });
+    it("for high activity", async () => {
+      const pcsColl = mddb.collection(derivePCSCollName(collectionName));
+      const pcscs = pcsColl.watch([]);
+      // Buffer the persisted change stream events as they happen
+      const buffer: PCSEvent[] = [];
+      void (async () => {
+        try {
+          for await (const c of pcscs) {
+            assert(c.operationType === "insert");
+            buffer.push(zodPCSEvent.parse(c.fullDocument));
+          }
+        } catch (e) {
+          // The change stream gets closed once the client gets closed
+          // at the end of the test
+          assert(e instanceof MongoServerError);
+        }
+      })();
+      // Insert a large number of documents into the collection
+      // Use a session to get the operation time
+      let opTime!: Timestamp;
+      await client.withSession(async (session) => {
+        await collection.insertMany(
+          Array.from({ length: 50000 }).map((_) => {
+            return {};
+          }),
+          { session }
+        );
+        opTime = z.instanceof(Timestamp).parse(session.operationTime);
+      });
+      // Wait for the PCS to catch up
+      while (buffer.length === 0 || buffer[buffer.length - 1]!.ct.lt(opTime)) {
+        await sleep(250);
+      }
+      // Wait for a new noop
+      const noopCntBefore = buffer.filter((x) => x.o === "n").length;
       while (buffer.filter((x) => x.o === "n").length < noopCntBefore + 1) {
         await sleep(1000);
       }
