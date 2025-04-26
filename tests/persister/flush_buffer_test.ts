@@ -1,6 +1,7 @@
 import { it, describe } from "node:test";
 import { FlushBuffer } from "../../src/persister/flush_buffer";
 import { strict as assert } from "assert";
+import { sleep } from "../test_utils/sleep";
 
 describe("works", () => {
   it("1", async () => {
@@ -24,8 +25,8 @@ describe("works", () => {
 
     // Must not flush again
     flushedItems = undefined;
-    await new Promise((res) => setTimeout(res, 0));
-    await new Promise((res) => setTimeout(res, 0));
+    await sleep(0);
+    await sleep(0);
     assert.equal(flushedItems, undefined);
 
     // Push another item
@@ -33,7 +34,7 @@ describe("works", () => {
     assert.equal(flushedItems, undefined);
 
     // Wait for a task -> must push
-    await new Promise((res) => setTimeout(res, 0));
+    await sleep(0);
     assert.deepStrictEqual(flushedItems, [4]);
   });
 
@@ -49,7 +50,7 @@ describe("works", () => {
 
     // Wait for the next task, letting that of the
     // buffer fire.
-    await new Promise((res) => setTimeout(res, 0));
+    await sleep(0);
 
     // Must have flushed the item
     assert.deepStrictEqual(flushedItems, [0]);
@@ -57,8 +58,8 @@ describe("works", () => {
     // Must also reset the state
     // Does not flush again
     flushedItems = undefined;
-    await new Promise((res) => setTimeout(res, 0));
-    await new Promise((res) => setTimeout(res, 0));
+    await sleep(0);
+    await sleep(0);
     assert.equal(flushedItems, undefined);
 
     // Takes two new items to flush
@@ -83,7 +84,7 @@ it("can abort", async () => {
   buf.abort();
 
   // Wait for the next task
-  await new Promise((res) => setTimeout(res, 0));
+  await sleep(0);
 
   // Must not flush
   assert.deepStrictEqual(flushedItems, undefined);

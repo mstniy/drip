@@ -1,7 +1,7 @@
 import { ObjectId, Timestamp } from "mongodb";
 import z from "zod";
 
-const zodPCSEventCommon = z.object({
+export const zodPCSEventCommon = z.object({
   _id: z.instanceof(ObjectId),
   // cluster time
   ct: z.instanceof(Timestamp),

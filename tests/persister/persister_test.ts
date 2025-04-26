@@ -24,6 +24,7 @@ import { openTestDB } from "../test_utils/open_test_db";
 import { getRandomString } from "../test_utils/random_string";
 import z from "zod";
 import { decodeResumeToken } from "mongodb-resumetoken-decoder";
+import { sleep } from "../test_utils/sleep";
 
 describe("persister", () => {
   let client: MongoClient;
@@ -48,7 +49,7 @@ describe("persister", () => {
     );
     while (true) {
       await persister.next();
-      await new Promise((res) => setTimeout(res, 50));
+      await sleep(50);
     }
   }
 
@@ -71,7 +72,7 @@ describe("persister", () => {
         break;
       }
       // Sleep for 250 ms and try again
-      await new Promise((res) => setTimeout(res, 250));
+      await sleep(250);
     }
     // Give up if the persisted chsange stream collection
     // is still empty.
@@ -102,7 +103,7 @@ describe("persister", () => {
         break;
       }
       // Sleep for 250 ms and try again
-      await new Promise((res) => setTimeout(res, 250));
+      await sleep(250);
     }
     let pcsEvents!: Document[];
     let mdEntry!: Document | undefined;
@@ -243,7 +244,7 @@ describe("persister", () => {
       // Does not terminate by itself
       assert(!res.done);
       // Wait for a task for interesting things to happen
-      await new Promise((res) => setTimeout(res, 0));
+      await sleep(0);
     }
     // Shut it down
     await p.return();

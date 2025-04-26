@@ -1,6 +1,7 @@
 import { it } from "node:test";
 import { PromiseTrain } from "../../src/persister/promise_train";
 import { strict as assert } from "assert";
+import { sleep } from "../test_utils/sleep";
 
 it("subsequent pushes await the previous ones", async () => {
   const train = new PromiseTrain();
@@ -37,7 +38,7 @@ it("subsequent pushes await the previous ones", async () => {
     .then(() => (p3ack = true));
 
   // Wait for a task because why not
-  await new Promise((res) => setTimeout(res, 0));
+  await sleep(0);
 
   // Operations in subsequent pushes have not started yet
   // They are waiting for p1
@@ -52,7 +53,7 @@ it("subsequent pushes await the previous ones", async () => {
   p1res(null);
 
   // Wait for a task because why not
-  await new Promise((res) => setTimeout(res, 0));
+  await sleep(0);
 
   // p2 has started
   assert.equal(p2flag, true);
@@ -69,7 +70,7 @@ it("subsequent pushes await the previous ones", async () => {
   p2res(null);
 
   // Wait for a task because why not
-  await new Promise((res) => setTimeout(res, 0));
+  await sleep(0);
 
   // p3 has started
   assert.equal(p3flag, true);
