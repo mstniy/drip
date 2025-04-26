@@ -106,9 +106,10 @@ export async function* runPersister(
 
   try {
     for await (const event of ncs) {
+      // This lets the caller stop us gracefully
+      yield;
       if (event.type === "nothing") {
-        // This lets the caller stop us gracefully
-        yield;
+        // Nothing
       } else if (event.type === "noop") {
         const noop = {
           _id: new ObjectId(),

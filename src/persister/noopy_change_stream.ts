@@ -39,7 +39,6 @@ export async function* noopyCS<TLocal extends Document>(
     });
 
     while (true) {
-      yield { type: "nothing" };
       // Use tryNext instead of next to make the
       // query return if there are still no events
       // after maxAwaitTimeMS.
@@ -54,6 +53,9 @@ export async function* noopyCS<TLocal extends Document>(
         // If there is no change event, but nevertheless
         // a more recent resume token, emit it as a noop
         yield noop;
+      } else {
+        // This ensures we yield once per tryNext() call
+        yield { type: "nothing" };
       }
       noop = undefined;
     }
