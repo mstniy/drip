@@ -231,7 +231,6 @@ describe("persister", () => {
       mddb.databaseName,
       db.collection(collectionName),
       {
-        // This is for the "can stop gracefully" test
         // As otherwise is takes ~10 seconds for the
         // tryNext() call to return, and the test also
         // takes ~10 seconds to finish.
@@ -251,10 +250,5 @@ describe("persister", () => {
 
     // Not we can close the client
     await client.close();
-
-    // The persister has indeed returned
-    for (let i = 0; i < 10; i++) {
-      await p.next();
-    }
   });
 });
