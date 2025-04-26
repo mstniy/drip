@@ -11,8 +11,12 @@ import { PCSEventCommon, PCSNoopEvent } from "../cea/pcs_event";
 import { FlushBuffer } from "./flush_buffer";
 import { noopyCS } from "./noopy_change_stream";
 
+// The defaults here are pretty solid,
+// so you should not change them unless
+// you really know what you are doing.
 export interface PersisterOptions {
   maxAwaitTimeMS?: number;
+  minNoopIntervalMS?: number;
 }
 
 export async function* runPersister(
@@ -80,6 +84,15 @@ export async function* runPersister(
     (events) => pushPCSEventsUpdateMetadata(events, lastResumeToken)
   );
 
+  const minNoopIntervalMS =
+    typeof options?.minNoopIntervalMS === "number"
+      ? options.minNoopIntervalMS
+      : // The default MongoDB noop interval is 10 seconds,
+        // so the default here should also be less than 10 seconds.
+        // It should not be too small, though, as then we cannot
+        // avoid the CT loop described below.
+        8000;
+
   const cs = watchCollection.watch(
     [
       {
@@ -105,22 +118,38 @@ export async function* runPersister(
   const ncs = noopyCS(cs);
 
   try {
+    let lastEventClock: Date | undefined;
     for await (const event of ncs) {
       // This lets the caller stop us gracefully
       yield;
       if (event.type === "nothing") {
         // Nothing
       } else if (event.type === "noop") {
-        const noop = {
-          _id: new ObjectId(),
-          ct: event.ct,
-          o: "n",
-          w: new Date(),
-        } satisfies PCSNoopEvent;
-        await flushBuffer.push(noop);
+        const w = new Date();
+        if (
+          !lastEventClock ||
+          // Avoid persisting every single change in the cluster time,
+          // as this leads to an infinite loop of us persisting the CT,
+          // and the CT advancing because of the new write, if we are
+          // persisting to the same cluster we are reading the CS from.
+          w.getTime() - lastEventClock.getTime() >= minNoopIntervalMS ||
+          // Means the wall clock went backwards - so be prudent
+          // and persist the noop
+          lastEventClock > w
+        ) {
+          const noop = {
+            _id: new ObjectId(),
+            ct: event.ct,
+            o: "n",
+            w: w,
+          } satisfies PCSNoopEvent;
+          await flushBuffer.push(noop);
+          lastEventClock = w;
+        }
       } else {
         event.type satisfies "change";
 
+        lastEventClock = new Date();
         const pcse = changeEventToPCSEvent(event.change);
         if (typeof pcse !== "undefined") {
           lastResumeToken = event.change._id;

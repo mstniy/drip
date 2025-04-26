@@ -20,6 +20,7 @@ export async function* noopyCS<TLocal extends Document>(
 ): AsyncGenerator<NoopyCSEvent<ChangeStreamDocument<TLocal>>, void, void> {
   try {
     let noop: NoopyCSNoop | undefined;
+    let lastRTData: string | undefined;
     // We are interested in recording noops, but the change
     // stream filters them out. So we listen explicitly
     // for resumeTokenChanged.
@@ -28,14 +29,22 @@ export async function* noopyCS<TLocal extends Document>(
         .string()
         .parse((resumeToken as Record<string, unknown>)["_data"]);
 
-      const decoded = decodeResumeToken(newResumeTokenData);
-      noop = {
-        // mongodb-resumetoken-decoder and the actual driver use
-        // incompatible bson versions, so translate between
-        // the two
-        ct: Timestamp.fromBits(decoded.timestamp.low, decoded.timestamp.high),
-        type: "noop",
-      } satisfies NoopyCSNoop;
+      // The MongoDB Node driver emits this event
+      // after each empty batch, even if the
+      // resume token did not actually change.
+      // So we do our own deduplication.
+      if (newResumeTokenData !== lastRTData) {
+        lastRTData = newResumeTokenData;
+        const decoded = decodeResumeToken(newResumeTokenData);
+
+        noop = {
+          // mongodb-resumetoken-decoder and the actual driver use
+          // incompatible bson versions, so translate between
+          // the two
+          ct: Timestamp.fromBits(decoded.timestamp.low, decoded.timestamp.high),
+          type: "noop",
+        } satisfies NoopyCSNoop;
+      }
     });
 
     while (true) {

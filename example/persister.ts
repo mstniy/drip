@@ -9,13 +9,7 @@ async function main() {
 
   console.log("Starting the Drip persister...");
 
-  const persister = runPersister(client, dbName, coll, {
-    // Use a small max await time to reduce latency
-    // Note that this likely would reduce throughput,
-    // so a production system would likely use a larger
-    // value, or the default.
-    maxAwaitTimeMS: 1000,
-  });
+  const persister = runPersister(client, dbName, coll);
 
   while (true) {
     await persister.next();

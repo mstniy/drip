@@ -190,6 +190,10 @@ describe("persister", () => {
       mddb.databaseName,
       db.collection(collectionName),
       {
+        // This is for the "can stop gracefully" test
+        // As otherwise is takes ~10 seconds for the
+        // tryNext() call to return, and the test also
+        // takes ~10 seconds to finish.
         maxAwaitTimeMS: 10,
       }
     );
