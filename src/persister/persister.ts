@@ -1,4 +1,10 @@
-import { Collection, MongoClient, ObjectId, ReadConcernLevel } from "mongodb";
+import {
+  Collection,
+  MongoClient,
+  ObjectId,
+  ReadConcernLevel,
+  ResumeToken,
+} from "mongodb";
 import { derivePCSCollName } from "../cea/derive_pcs_coll_name";
 import { changeEventToPCSEvent } from "./change_event_to_pcs_event";
 import {
@@ -34,33 +40,37 @@ export async function* runPersister(
   );
 
   async function pushPCSEventsUpdateMetadata(
-    events: PCSEventCommon[],
-    resumeToken: unknown
+    events: [ResumeToken, PCSEventCommon][]
   ) {
-    await promiseTrain.push(() =>
-      metadataClient.withSession((session) =>
-        session.withTransaction(
-          async (session) => {
-            await pcsColl.insertMany(events, {
-              ordered: true,
-              session,
-            });
-            await metadataColl.findOneAndUpdate(
-              { _id: collectionName },
-              { $set: { resumeToken: resumeToken } },
-              {
-                upsert: true,
-                session,
-              }
-            );
-          },
-          {
-            readConcern: ReadConcernLevel.majority,
-            writeConcern: { w: "majority" },
-          }
+    if (events.length > 0) {
+      await promiseTrain.push(() =>
+        metadataClient.withSession((session) =>
+          session.withTransaction(
+            async (session) => {
+              await pcsColl.insertMany(
+                events.map((e) => e[1]),
+                {
+                  ordered: true,
+                  session,
+                }
+              );
+              await metadataColl.findOneAndUpdate(
+                { _id: collectionName },
+                { $set: { resumeToken: events[events.length - 1]![0] } },
+                {
+                  upsert: true,
+                  session,
+                }
+              );
+            },
+            {
+              readConcern: ReadConcernLevel.majority,
+              writeConcern: { w: "majority" },
+            }
+          )
         )
-      )
-    );
+      );
+    }
   }
 
   const persistedResumeToken = (
@@ -78,10 +88,9 @@ export async function* runPersister(
 
   const MAX_BUFFER_LENGTH = 1000;
 
-  let lastResumeToken: unknown;
-  const flushBuffer = new FlushBuffer<PCSEventCommon>(
+  const flushBuffer = new FlushBuffer<[ResumeToken, PCSEventCommon]>(
     MAX_BUFFER_LENGTH,
-    (events) => pushPCSEventsUpdateMetadata(events, lastResumeToken)
+    (events) => pushPCSEventsUpdateMetadata(events)
   );
 
   const minNoopIntervalMS =
@@ -143,17 +152,16 @@ export async function* runPersister(
             o: "n",
             w: w,
           } satisfies PCSNoopEvent;
-          await flushBuffer.push(noop);
           lastEventClock = w;
+          await flushBuffer.push([event.rt, noop]);
         }
       } else {
         event.type satisfies "change";
 
-        lastEventClock = new Date();
         const pcse = changeEventToPCSEvent(event.change);
         if (typeof pcse !== "undefined") {
-          lastResumeToken = event.change._id;
-          await flushBuffer.push(pcse);
+          lastEventClock = new Date();
+          await flushBuffer.push([event.change._id, pcse]);
         }
       }
     }

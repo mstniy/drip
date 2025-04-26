@@ -2,13 +2,14 @@ import {
   ChangeStream,
   ChangeStreamDocument,
   Document,
+  ResumeToken,
   Timestamp,
 } from "mongodb";
 import { decodeResumeToken } from "mongodb-resumetoken-decoder";
 import z from "zod";
 
 type NoopyCSNothing = { type: "nothing" };
-type NoopyCSNoop = { type: "noop"; ct: Timestamp };
+type NoopyCSNoop = { type: "noop"; rt: ResumeToken; ct: Timestamp };
 
 type NoopyCSEvent<TChange extends Document> =
   | { type: "change"; change: TChange }
@@ -26,8 +27,8 @@ export async function* noopyCS<TLocal extends Document>(
     // for resumeTokenChanged.
     cs.on("resumeTokenChanged", (resumeToken) => {
       const newResumeTokenData = z
-        .string()
-        .parse((resumeToken as Record<string, unknown>)["_data"]);
+        .object({ _data: z.string() })
+        .parse(resumeToken)._data;
 
       // The MongoDB Node driver emits this event
       // after each empty batch, even if the
@@ -38,11 +39,12 @@ export async function* noopyCS<TLocal extends Document>(
         const decoded = decodeResumeToken(newResumeTokenData);
 
         noop = {
+          type: "noop",
+          rt: resumeToken,
           // mongodb-resumetoken-decoder and the actual driver use
           // incompatible bson versions, so translate between
           // the two
           ct: Timestamp.fromBits(decoded.timestamp.low, decoded.timestamp.high),
-          type: "noop",
         } satisfies NoopyCSNoop;
       }
     });

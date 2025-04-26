@@ -1,4 +1,12 @@
-import { Db, MongoClient, MongoServerError, ObjectId } from "mongodb";
+import {
+  Db,
+  Document,
+  MongoClient,
+  MongoServerError,
+  ObjectId,
+  ReadConcernLevel,
+  Timestamp,
+} from "mongodb";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { strict as assert } from "assert";
 import { derivePCSCollName } from "../../src/cea/derive_pcs_coll_name";
@@ -14,6 +22,8 @@ import {
 import { runPersister } from "../../src/persister/persister";
 import { openTestDB } from "../test_utils/open_test_db";
 import { getRandomString } from "../test_utils/random_string";
+import z from "zod";
+import { decodeResumeToken } from "mongodb-resumetoken-decoder";
 
 describe("persister", () => {
   let client: MongoClient;
@@ -94,13 +104,29 @@ describe("persister", () => {
       // Sleep for 250 ms and try again
       await new Promise((res) => setTimeout(res, 250));
     }
-    // Give up if the persisted chsange stream collection
-    // does not have three events for the chosen object id
-    const pcsEvents = await mddb
-      .collection(derivePCSCollName(collectionName))
-      .find({ "k._id": id })
-      .sort({ ct: 1 })
-      .toArray();
+    let pcsEvents!: Document[];
+    let mdEntry!: Document | undefined;
+    // Read the PCS and the metadata table transactionally
+    // using the snapshot read concern, as we'll compare
+    // their states with one another.
+    await client.withSession((session) =>
+      session.withTransaction(
+        async (session) => {
+          pcsEvents = await mddb
+            .collection(derivePCSCollName(collectionName))
+            .find({ "k._id": id }, { session })
+            .sort({ ct: 1 })
+            .toArray();
+          mdEntry = (
+            await mddb
+              .collection<{ _id: string }>(MetadataCollectionName)
+              .find({ _id: collectionName }, { session })
+              .toArray()
+          )[0];
+        },
+        { readConcern: ReadConcernLevel.snapshot }
+      )
+    );
     if (pcsEvents.length !== 3) {
       throw new Error("Persister did not track changes :(");
     }
@@ -137,6 +163,21 @@ describe("persister", () => {
       ct: e3.ct,
       k: { _id: id },
     } satisfies PCSDeletionEvent);
+
+    // The resume token must exist
+    const resumeTokenData = z
+      .object({ resumeToken: z.object({ _data: z.string() }) })
+      .parse(mdEntry).resumeToken._data;
+    // mongodb-resumetoken-decoder and the actual driver use
+    // incompatible bson versions, so translate between
+    // the two
+    const decoded = decodeResumeToken(resumeTokenData);
+    const rtCT = Timestamp.fromBits(
+      decoded.timestamp.low,
+      decoded.timestamp.high
+    );
+    // The resume token must point to the last persisted event
+    assert(rtCT.eq(e3.ct));
   }
 
   it("works when there is no resume token", test);
