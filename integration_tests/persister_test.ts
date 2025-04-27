@@ -6,7 +6,6 @@ import {
   Timestamp,
   ObjectId,
 } from "mongodb";
-import { beforeAll, afterEach, beforeEach, describe, it } from "bun:test";
 import { runPersister } from "../src/persister/persister";
 import { openTestDB } from "../tests/test_utils/open_test_db";
 import { getRandomString } from "../tests/test_utils/random_string";
@@ -16,6 +15,14 @@ import { MetadataCollectionName } from "../src/cea/metadata";
 import { derivePCSCollName } from "../src/cea/derive_pcs_coll_name";
 import { sleep } from "../tests/test_utils/sleep";
 import { PCSEvent, zodPCSEvent } from "../src/cea/pcs_event";
+import {
+  describe,
+  it,
+  beforeEach,
+  afterEach,
+  before,
+} from "../tests/test_utils/tests_polyglot";
+import { isBun } from "../tests/test_utils/is_bun";
 
 function assertNonDescreasingCT(buffer: PCSEvent[]) {
   buffer
@@ -63,16 +70,14 @@ function checkPCSInvariants(buffer: PCSEvent[]) {
 }
 
 describe("self test", () => {
+  const reduceEmpty = `${isBun() ? "r" : "R"}educe of empty array with no initial value`;
   describe("assertNonDescreasingCT", () => {
     it("fails for an empty list", () => {
       try {
         assertNonDescreasingCT([]);
         assert(false, "must have thrown");
       } catch (e) {
-        assert(
-          e instanceof TypeError &&
-            e.message === "reduce of empty array with no initial value"
-        );
+        assert(e instanceof TypeError && e.message === reduceEmpty);
       }
     });
     it("passes for a list with one element", () => {
@@ -147,10 +152,7 @@ describe("self test", () => {
         assertUniqueNoops([]);
         assert(false, "must have thrown");
       } catch (e) {
-        assert(
-          e instanceof TypeError &&
-            e.message === "reduce of empty array with no initial value"
-        );
+        assert(e instanceof TypeError && e.message === reduceEmpty);
       }
     });
     it("fails for a list with no noops", () => {
@@ -166,10 +168,7 @@ describe("self test", () => {
         ]);
         assert(false, "must have thrown");
       } catch (e) {
-        assert(
-          e instanceof TypeError &&
-            e.message === "reduce of empty array with no initial value"
-        );
+        assert(e instanceof TypeError && e.message === reduceEmpty);
       }
     });
     it("passes for a list with one noop", () => {
@@ -263,10 +262,7 @@ describe("self test", () => {
         assertInfrequentNoops([]);
         assert(false, "must have thrown");
       } catch (e) {
-        assert(
-          e instanceof TypeError &&
-            e.message === "reduce of empty array with no initial value"
-        );
+        assert(e instanceof TypeError && e.message === reduceEmpty);
       }
     });
     it("fails for a list with no noops", () => {
@@ -282,10 +278,7 @@ describe("self test", () => {
         ]);
         assert(false, "must have thrown");
       } catch (e) {
-        assert(
-          e instanceof TypeError &&
-            e.message === "reduce of empty array with no initial value"
-        );
+        assert(e instanceof TypeError && e.message === reduceEmpty);
       }
     });
     it("passes for a list with one noop", () => {
@@ -422,7 +415,7 @@ describe("persister", () => {
   }
 
   describe("PCS invariants hold", () => {
-    beforeAll(async () => {
+    before(async () => {
       const [client, db] = await openTestDB();
       const pnis = z
         .object({ periodicNoopIntervalSecs: z.number() })

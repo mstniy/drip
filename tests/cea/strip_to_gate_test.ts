@@ -1,6 +1,6 @@
 import { strict as assert } from "assert";
-import { describe, it } from "bun:test";
 import { stripToGate } from "../../src/cea/strip_to_gate";
+import { describe, it } from "../test_utils/tests_polyglot";
 
 describe("stripToGate", () => {
   it("works for empty pipelines", () => {

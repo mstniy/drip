@@ -1,4 +1,4 @@
-import { describe, it } from "bun:test";
+import { describe, it } from "../../test_utils/tests_polyglot";
 import { strict as assert } from "assert";
 import {
   scopeStage,

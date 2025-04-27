@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, it } from "bun:test";
+import { after, before, describe, it } from "../test_utils/tests_polyglot";
 import { Db, MongoClient, ObjectId, Timestamp } from "mongodb";
 
 import {
@@ -75,11 +75,11 @@ describe("dripCEAStart", () => {
       w: new Date("2025-02-20T11:24:44.709Z"),
     } satisfies PCSNoopEvent,
   ] as const;
-  beforeAll(async () => {
+  before(async () => {
     [client, , db] = await openTestDB();
     await db.collection(derivePCSCollName(collectionName)).insertMany(events);
   });
-  afterAll(() => client.close());
+  after(() => client.close());
   it("ignores too old events", async () => {
     const res = await genToArray(
       dripCEAStart(db, collectionName, events[3].ct, [])
@@ -225,12 +225,12 @@ describe("dripCEAResume", () => {
       o: "i",
     } satisfies PCSInsertionEvent,
   ] as const;
-  beforeAll(async () => {
+  before(async () => {
     [client, db] = await openTestDB();
     collectionName = getRandomString();
     await db.collection(derivePCSCollName(collectionName)).insertMany(events);
   });
-  afterAll(() => client.close());
+  after(() => client.close());
   it("yields nothing if there are no persisted events", async () => {
     const res = await genToArray(
       dripCEAResume(

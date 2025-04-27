@@ -1,5 +1,5 @@
 import { strict as assert } from "assert";
-import { describe, it } from "bun:test";
+import { describe, it } from "../../test_utils/tests_polyglot";
 import { isComposite } from "../../../src/cea/scope_ppl/atoms";
 import { Long } from "mongodb";
 

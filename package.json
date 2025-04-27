@@ -7,8 +7,9 @@
   "scripts": {
     "lint": "npx tsc --noEmit && npx eslint . && npx prettier . --check",
     "test": "node --import tsx --test $(find tests -name \"*_test.ts\")",
-    "test-bun": "bun test tests/**/*_test.ts",
+    "test-bun": "find tests -name \"*_test.ts\" | xargs -L1 bun test",
     "integration": "node --import tsx --test $(find integration_tests -name \"*_test.ts\")",
+    "integration-bun": "find integration_tests -name \"*_test.ts\" | xargs -L1 bun test",
     "coverage": "nyc npm run test",
     "prepare": "npx tsc --project tsconfig.npm.json"
   },

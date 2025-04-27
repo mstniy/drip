@@ -1,5 +1,5 @@
 import { strict as assert } from "assert";
-import { describe, it } from "bun:test";
+import { describe, it } from "../test_utils/tests_polyglot";
 import { ObjectId } from "mongodb";
 import { oidLT } from "../../src/cea/oid_less";
 
