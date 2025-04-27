@@ -6,7 +6,7 @@ import {
   Timestamp,
   ObjectId,
 } from "mongodb";
-import { before, afterEach, beforeEach, describe, it } from "node:test";
+import { beforeAll, afterEach, beforeEach, describe, it } from "bun:test";
 import { runPersister } from "../src/persister/persister";
 import { openTestDB } from "../tests/test_utils/open_test_db";
 import { getRandomString } from "../tests/test_utils/random_string";
@@ -71,7 +71,7 @@ describe("self test", () => {
       } catch (e) {
         assert(
           e instanceof TypeError &&
-            e.message === "Reduce of empty array with no initial value"
+            e.message === "reduce of empty array with no initial value"
         );
       }
     });
@@ -149,7 +149,7 @@ describe("self test", () => {
       } catch (e) {
         assert(
           e instanceof TypeError &&
-            e.message === "Reduce of empty array with no initial value"
+            e.message === "reduce of empty array with no initial value"
         );
       }
     });
@@ -168,7 +168,7 @@ describe("self test", () => {
       } catch (e) {
         assert(
           e instanceof TypeError &&
-            e.message === "Reduce of empty array with no initial value"
+            e.message === "reduce of empty array with no initial value"
         );
       }
     });
@@ -265,7 +265,7 @@ describe("self test", () => {
       } catch (e) {
         assert(
           e instanceof TypeError &&
-            e.message === "Reduce of empty array with no initial value"
+            e.message === "reduce of empty array with no initial value"
         );
       }
     });
@@ -284,7 +284,7 @@ describe("self test", () => {
       } catch (e) {
         assert(
           e instanceof TypeError &&
-            e.message === "Reduce of empty array with no initial value"
+            e.message === "reduce of empty array with no initial value"
         );
       }
     });
@@ -422,7 +422,7 @@ describe("persister", () => {
   }
 
   describe("PCS invariants hold", () => {
-    before(async () => {
+    beforeAll(async () => {
       const [client, db] = await openTestDB();
       const pnis = z
         .object({ periodicNoopIntervalSecs: z.number() })
@@ -438,99 +438,110 @@ describe("persister", () => {
       );
       await client.close();
     });
-    it("for low activity", async () => {
-      const pcsColl = mddb.collection(derivePCSCollName(collectionName));
-      const pcscs = pcsColl.watch([]);
-      // Buffer the persisted change stream events as they happen
-      const buffer: PCSEvent[] = [];
-      void (async () => {
-        try {
-          for await (const c of pcscs) {
-            assert(c.operationType === "insert");
-            buffer.push(zodPCSEvent.parse(c.fullDocument));
+    it(
+      "for low activity",
+      async () => {
+        const pcsColl = mddb.collection(derivePCSCollName(collectionName));
+        const pcscs = pcsColl.watch([]);
+        // Buffer the persisted change stream events as they happen
+        const buffer: PCSEvent[] = [];
+        void (async () => {
+          try {
+            for await (const c of pcscs) {
+              assert(c.operationType === "insert");
+              buffer.push(zodPCSEvent.parse(c.fullDocument));
+            }
+          } catch (e) {
+            // The change stream gets closed once the client gets closed
+            // at the end of the test
+            assert(e instanceof MongoServerError);
           }
-        } catch (e) {
-          // The change stream gets closed once the client gets closed
-          // at the end of the test
-          assert(e instanceof MongoServerError);
+        })();
+        // Wait for a noop
+        while (buffer.findIndex((x) => x.o === "n") === -1) {
+          await sleep(1000);
         }
-      })();
-      // Wait for a noop
-      while (buffer.findIndex((x) => x.o === "n") === -1) {
-        await sleep(1000);
-      }
-      // Insert a document into the collection
-      await collection.insertOne({});
-      // Wait for two new noops
-      let noopCntBefore = buffer.filter((x) => x.o === "n").length;
-      while (buffer.filter((x) => x.o === "n").length < noopCntBefore + 2) {
-        await sleep(1000);
-      }
-      // Insert two documents into the collection
-      // Use a session to get the operation time
-      let opTime!: Timestamp;
-      await client.withSession(async (session) => {
-        await collection.insertMany([{}, {}], { session });
-        opTime = z.instanceof(Timestamp).parse(session.operationTime);
-      });
-      // Wait for the PCS to catch up
-      while (
-        buffer.length === 0 ||
-        buffer
-          .map((pcse) => pcse.ct)
-          .reduce((a, b) => (a.gt(b) ? a : b))
-          .lt(opTime)
-      ) {
-        await sleep(250);
-      }
-      // Wait for another nop
-      noopCntBefore = buffer.filter((x) => x.o === "n").length;
-      while (buffer.filter((x) => x.o === "n").length < noopCntBefore + 1) {
-        await sleep(1000);
-      }
+        // Insert a document into the collection
+        await collection.insertOne({});
+        // Wait for two new noops
+        let noopCntBefore = buffer.filter((x) => x.o === "n").length;
+        while (buffer.filter((x) => x.o === "n").length < noopCntBefore + 2) {
+          await sleep(1000);
+        }
+        // Insert two documents into the collection
+        // Use a session to get the operation time
+        let opTime!: Timestamp;
+        await client.withSession(async (session) => {
+          await collection.insertMany([{}, {}], { session });
+          opTime = z.instanceof(Timestamp).parse(session.operationTime);
+        });
+        // Wait for the PCS to catch up
+        while (
+          buffer.length === 0 ||
+          buffer
+            .map((pcse) => pcse.ct)
+            .reduce((a, b) => (a.gt(b) ? a : b))
+            .lt(opTime)
+        ) {
+          await sleep(250);
+        }
+        // Wait for another nop
+        noopCntBefore = buffer.filter((x) => x.o === "n").length;
+        while (buffer.filter((x) => x.o === "n").length < noopCntBefore + 1) {
+          await sleep(1000);
+        }
 
-      checkPCSInvariants(buffer);
-    });
-    it("for high activity", async () => {
-      const pcsColl = mddb.collection(derivePCSCollName(collectionName));
-      const pcscs = pcsColl.watch([]);
-      // Buffer the persisted change stream events as they happen
-      const buffer: PCSEvent[] = [];
-      void (async () => {
-        try {
-          for await (const c of pcscs) {
-            assert(c.operationType === "insert");
-            buffer.push(zodPCSEvent.parse(c.fullDocument));
+        checkPCSInvariants(buffer);
+      },
+      { timeout: 120000 }
+    );
+    it(
+      "for high activity",
+      async () => {
+        const pcsColl = mddb.collection(derivePCSCollName(collectionName));
+        const pcscs = pcsColl.watch([]);
+        // Buffer the persisted change stream events as they happen
+        const buffer: PCSEvent[] = [];
+        void (async () => {
+          try {
+            for await (const c of pcscs) {
+              assert(c.operationType === "insert");
+              buffer.push(zodPCSEvent.parse(c.fullDocument));
+            }
+          } catch (e) {
+            // The change stream gets closed once the client gets closed
+            // at the end of the test
+            assert(e instanceof MongoServerError);
           }
-        } catch (e) {
-          // The change stream gets closed once the client gets closed
-          // at the end of the test
-          assert(e instanceof MongoServerError);
+        })();
+        // Insert a large number of documents into the collection
+        // Use a session to get the operation time
+        let opTime!: Timestamp;
+        await client.withSession(async (session) => {
+          await collection.insertMany(
+            Array.from({ length: 50000 }).map((_) => {
+              return {};
+            }),
+            { session }
+          );
+          opTime = z.instanceof(Timestamp).parse(session.operationTime);
+        });
+        // Wait for the PCS to catch up
+        while (
+          buffer.length === 0 ||
+          buffer[buffer.length - 1]!.ct.lt(opTime)
+        ) {
+          await sleep(250);
         }
-      })();
-      // Insert a large number of documents into the collection
-      // Use a session to get the operation time
-      let opTime!: Timestamp;
-      await client.withSession(async (session) => {
-        await collection.insertMany(
-          Array.from({ length: 50000 }).map((_) => {
-            return {};
-          }),
-          { session }
-        );
-        opTime = z.instanceof(Timestamp).parse(session.operationTime);
-      });
-      // Wait for the PCS to catch up
-      while (buffer.length === 0 || buffer[buffer.length - 1]!.ct.lt(opTime)) {
-        await sleep(250);
-      }
-      // Wait for a new noop
-      const noopCntBefore = buffer.filter((x) => x.o === "n").length;
-      while (buffer.filter((x) => x.o === "n").length < noopCntBefore + 1) {
-        await sleep(1000);
-      }
+        // Wait for a new noop
+        const noopCntBefore = buffer.filter((x) => x.o === "n").length;
+        while (buffer.filter((x) => x.o === "n").length < noopCntBefore + 1) {
+          await sleep(1000);
+        }
 
-      checkPCSInvariants(buffer);
-    });
+        checkPCSInvariants(buffer);
+      },
+      { timeout: 120000 }
+    );
   });
 });

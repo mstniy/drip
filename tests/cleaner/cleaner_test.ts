@@ -1,5 +1,5 @@
 import { MongoClient, Db, ObjectId, Timestamp, Collection } from "mongodb";
-import { after, before, beforeEach, describe, it } from "node:test";
+import { afterAll, beforeAll, beforeEach, describe, it } from "bun:test";
 import { openTestDB } from "../test_utils/open_test_db";
 import { getRandomString } from "../test_utils/random_string";
 import { PCSNoopEvent, PCSInsertionEvent } from "../../src/cea/pcs_event";
@@ -61,10 +61,10 @@ describe("cleaner", () => {
       w: new Date("2025-02-20T11:25:44.708Z"),
     },
   ] as const;
-  before(async () => {
+  beforeAll(async () => {
     [client, , db] = await openTestDB();
   });
-  after(() => client.close());
+  afterAll(() => client.close());
 
   beforeEach(async () => {
     collectionName = getRandomString();

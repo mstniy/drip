@@ -7,7 +7,7 @@ import {
   ReadConcernLevel,
   Timestamp,
 } from "mongodb";
-import { afterEach, beforeEach, describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "bun:test";
 import { strict as assert } from "assert";
 import { derivePCSCollName } from "../../src/cea/derive_pcs_coll_name";
 import { DripMetadata, MetadataCollectionName } from "../../src/cea/metadata";

@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it } from "bun:test";
 import { parsePipeline } from "../../../src/cea/parse_ppl/parse_pipeline";
 import { strict as assert } from "assert";
 import { InvalidStage } from "../../../src/cea/parse_ppl/invalid_stage";

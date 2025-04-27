@@ -1,4 +1,4 @@
-import { after, before, describe, it } from "node:test";
+import { afterAll, beforeAll, describe, it } from "bun:test";
 import {
   BSON,
   ClusterTime,
@@ -48,12 +48,12 @@ const events = [
     w: new Date(),
   },
 ] satisfies PCSNoopEvent[];
-before(async () => {
+beforeAll(async () => {
   [client, db, mddb] = await openTestDB();
   await db.collection<{ _id: number }>(collectionName).insertMany(objs);
   await mddb.collection(derivePCSCollName(collectionName)).insertMany(events);
 });
-after(() => client.close());
+afterAll(() => client.close());
 
 describe("dripCC", () => {
   it("works without a cursor", async () => {

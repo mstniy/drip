@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it } from "bun:test";
 import { strict as assert } from "assert";
 import { updateDescriptionToU } from "../../src/persister/update_description_to_u";
 

@@ -1,4 +1,4 @@
-import { it } from "node:test";
+import { it } from "bun:test";
 import { PromiseTrain } from "../../src/persister/promise_train";
 import { strict as assert } from "assert";
 import { sleep } from "../test_utils/sleep";

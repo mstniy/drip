@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it } from "bun:test";
 import { invertPipeline } from "../../src/cea/invert_ppl";
 import { strict as assert } from "assert";
 

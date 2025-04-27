@@ -1,5 +1,5 @@
 import { strict as assert } from "assert";
-import { describe, it } from "node:test";
+import { describe, it } from "bun:test";
 import {
   applyUpdateDescription,
   InvalidUpdateDescription,

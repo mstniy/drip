@@ -1,5 +1,5 @@
 import { strict as assert } from "assert";
-import { describe, it } from "node:test";
+import { describe, it } from "bun:test";
 import { ObjectId } from "mongodb";
 import { oidLT } from "../../src/cea/oid_less";
 
@@ -14,25 +14,19 @@ describe("oidLT", () => {
       ObjectId.createFromHexString("67bce7f5826f2020ba51e944"),
     ],
   ] as const;
-  it("returns true if a<b", async (t) => {
-    for (const [idx, pair] of pairs.entries()) {
-      await t.test(idx.toString(), () => {
-        assert.equal(oidLT(pair[0], pair[1]), true);
-      });
+  it("returns true if a<b", () => {
+    for (const pair of pairs.values()) {
+      assert.equal(oidLT(pair[0], pair[1]), true);
     }
   });
-  it("returns false if a>b", async (t) => {
-    for (const [idx, pair] of pairs.entries()) {
-      await t.test(idx.toString(), () => {
-        assert.equal(oidLT(pair[1], pair[0]), false);
-      });
+  it("returns false if a>b", () => {
+    for (const pair of pairs.values()) {
+      assert.equal(oidLT(pair[1], pair[0]), false);
     }
   });
-  it("returns false if a==b", async (t) => {
-    for (const [idx, pair] of pairs.entries()) {
-      await t.test(idx.toString(), () => {
-        assert.equal(oidLT(pair[0], pair[0]), false);
-      });
+  it("returns false if a==b", () => {
+    for (const pair of pairs.values()) {
+      assert.equal(oidLT(pair[0], pair[0]), false);
     }
   });
 });
