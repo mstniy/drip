@@ -33,6 +33,8 @@ drip_demo> db.drip_demo.updateOne({title: "test"}, {$set: {title: "new title"}})
 drip_demo> db.drip_demo.deleteOne({title: "new title"}) // Delete an item
 ```
 
+The sync has pretty high (~10 seconds) latency, as Drip waits for the MongoDB cluster time to advance (typically via a noop) before ingesting new changes.
+
 Note that the MongoDB documents must satisfy the schema defined in `demo.ts`.
 
 You can create the following indices to speed up CEA queries:
