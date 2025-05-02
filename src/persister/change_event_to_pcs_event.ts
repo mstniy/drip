@@ -9,39 +9,60 @@ import z from "zod";
 import { updateDescriptionToU as updateDescriptionToU } from "./update_description_to_u";
 import { strict as assert } from "assert";
 
+const zodInsertSchema = z.object({
+  clusterTime: z.instanceof(Timestamp),
+  documentKey: z.record(z.string(), z.unknown()),
+  fullDocument: z.record(z.string(), z.unknown()),
+});
+
+const zodUpdateSchema = z.object({
+  clusterTime: z.instanceof(Timestamp),
+  documentKey: z.record(z.string(), z.unknown()),
+  fullDocument: z.record(z.string(), z.unknown()),
+  fullDocumentBeforeChange: z.record(z.string(), z.unknown()),
+});
+
+const zodDeleteSchema = z.object({
+  clusterTime: z.instanceof(Timestamp),
+  documentKey: z.record(z.string(), z.unknown()),
+  fullDocumentBeforeChange: z.record(z.string(), z.unknown()),
+});
+
 export function changeEventToPCSEvent(
   ce: ChangeStreamDocument
 ): PCSEvent | undefined {
   if (ce.operationType === "insert") {
+    const ceParsed = zodInsertSchema.parse(ce);
     const res = {
       _id: new ObjectId(),
       o: "i",
-      ct: z.instanceof(Timestamp).parse(ce.clusterTime),
-      k: z.record(z.string(), z.unknown()).parse(ce.documentKey),
-      a: z.record(z.string(), z.unknown()).parse(ce.fullDocument),
+      ct: ceParsed.clusterTime,
+      k: ceParsed.documentKey,
+      a: ceParsed.fullDocument,
     } satisfies PCSInsertionEvent;
     return res;
   } else if (ce.operationType === "update" || ce.operationType === "replace") {
-    assert(typeof ce.fullDocumentBeforeChange !== "undefined");
+    const ceParsed = zodUpdateSchema.parse(ce);
     const res = {
       _id: new ObjectId(),
       o: "u",
-      ct: z.instanceof(Timestamp).parse(ce.clusterTime),
-      k: z.record(z.string(), z.unknown()).parse(ce.documentKey),
-      b: z.record(z.string(), z.unknown()).parse(ce.fullDocumentBeforeChange),
-      a: z.record(z.string(), z.unknown()).parse(ce.fullDocument),
+      ct: ceParsed.clusterTime,
+      k: ceParsed.documentKey,
+      b: ceParsed.fullDocumentBeforeChange,
+      a: ceParsed.fullDocument,
       ...(ce.operationType === "update"
         ? { u: updateDescriptionToU(ce.updateDescription) }
         : {}),
     } satisfies PCSUpdateEvent;
     return res;
   } else if (ce.operationType === "delete") {
+    const ceParsed = zodDeleteSchema.parse(ce);
     const res = {
       _id: new ObjectId(),
       o: "d",
-      ct: z.instanceof(Timestamp).parse(ce.clusterTime),
-      k: z.record(z.string(), z.unknown()).parse(ce.documentKey),
-      b: z.record(z.string(), z.unknown()).parse(ce.fullDocumentBeforeChange),
+      ct: ceParsed.clusterTime,
+      k: ceParsed.documentKey,
+      b: ceParsed.fullDocumentBeforeChange,
     } satisfies PCSDeletionEvent;
     return res;
   }
