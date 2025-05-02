@@ -543,6 +543,11 @@ describe("persister", () => {
       }
 
       checkPCSInvariants(buffer);
+
+      // All the persisted non-noop events must have the same cluster time
+      for (const pcse of buffer.filter((o) => o.o != "n")) {
+        assert(pcse.ct.eq(opTime));
+      }
     });
 
     it("for large transactions", { timeout: 120000 }, async () => {
@@ -583,6 +588,11 @@ describe("persister", () => {
       }
 
       checkPCSInvariants(buffer);
+
+      // All the persisted non-noop events must have the same cluster time
+      for (const pcse of buffer.filter((o) => o.o != "n")) {
+        assert(pcse.ct.eq(opTime));
+      }
     });
   });
 });
