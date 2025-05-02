@@ -50,9 +50,12 @@ export const zodPCSNoopEvent = zodPCSEventCommon.merge(
   })
 );
 
-export const zodPCSEvent = zodPCSDeletionEvent.or(
-  zodPCSInsertionEvent.or(zodPCSUpdateEvent.or(zodPCSNoopEvent))
-);
+export const zodPCSEvent = z.discriminatedUnion("o", [
+  zodPCSDeletionEvent,
+  zodPCSNoopEvent,
+  zodPCSInsertionEvent,
+  zodPCSUpdateEvent,
+]);
 
 export type PCSInsertionEvent = z.infer<typeof zodPCSInsertionEvent>;
 export type PCSUpdateEvent = z.infer<typeof zodPCSUpdateEvent>;
