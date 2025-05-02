@@ -141,6 +141,10 @@ export async function* dripCEAResume(
   // might be incomplete, as the persister does not
   // transactionally insert all PCS events with the
   // same CT.
+  // The same potentially also applies to the "head"
+  // of the PCS, as the persister might have started
+  // in the middle of a cluster time, but CC already
+  // ensures that ccStart > PCS head CT.
   if (!cursorEvent.ct.lt(maxCT)) {
     return;
   }
