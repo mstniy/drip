@@ -1,11 +1,5 @@
 import { MongoClient, Db, ObjectId, Timestamp, Collection } from "mongodb";
-import {
-  after,
-  before,
-  beforeEach,
-  describe,
-  it,
-} from "../test_utils/tests_polyglot";
+import { after, before, beforeEach, describe, it } from "node:test";
 import { openTestDB } from "../test_utils/open_test_db";
 import { getRandomString } from "../test_utils/random_string";
 import { PCSNoopEvent, PCSInsertionEvent } from "../../src/cea/pcs_event";

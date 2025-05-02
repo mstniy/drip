@@ -1,4 +1,4 @@
-import { describe, it } from "../../test_utils/tests_polyglot";
+import { describe, it } from "node:test";
 import { strict as assert } from "assert";
 import { InvalidExpression } from "../../../src/cea/scope_ppl/invalid_expression";
 import { scopeExpression } from "../../../src/cea/scope_ppl/scope_expression";

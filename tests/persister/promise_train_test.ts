@@ -1,4 +1,4 @@
-import { it } from "../test_utils/tests_polyglot";
+import { it } from "node:test";
 import { PromiseTrain } from "../../src/persister/promise_train";
 import { strict as assert } from "assert";
 import { sleep } from "../test_utils/sleep";

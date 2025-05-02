@@ -1,5 +1,5 @@
 import { strict as assert } from "assert";
-import { describe, it } from "../../test_utils/tests_polyglot";
+import { describe, it } from "node:test";
 import { InvalidExpression } from "../../../src/cea/scope_ppl/invalid_expression";
 import { scopePathExpression } from "../../../src/cea/scope_ppl/scope_path_expression";
 

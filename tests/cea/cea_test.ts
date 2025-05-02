@@ -1,4 +1,4 @@
-import { after, before, describe, it } from "../test_utils/tests_polyglot";
+import { after, before, describe, it } from "node:test";
 import { Db, MongoClient, ObjectId, Timestamp } from "mongodb";
 
 import {

@@ -15,13 +15,7 @@ import { MetadataCollectionName } from "../src/cea/metadata";
 import { derivePCSCollName } from "../src/cea/derive_pcs_coll_name";
 import { sleep } from "../tests/test_utils/sleep";
 import { PCSEvent, zodPCSEvent } from "../src/cea/pcs_event";
-import {
-  describe,
-  it,
-  beforeEach,
-  afterEach,
-  before,
-} from "../tests/test_utils/tests_polyglot";
+import { describe, it, beforeEach, afterEach, before } from "node:test";
 import { isBun } from "../tests/test_utils/is_bun";
 
 function assertNonDescreasingCT(buffer: PCSEvent[]) {
@@ -431,199 +425,164 @@ describe("persister", () => {
       );
       await client.close();
     });
-    it(
-      "for low activity",
-      async () => {
-        const pcsColl = mddb.collection(derivePCSCollName(collectionName));
-        const pcscs = pcsColl.watch([]);
-        // Buffer the persisted change stream events as they happen
-        const buffer: PCSEvent[] = [];
-        void (async () => {
-          try {
-            for await (const c of pcscs) {
-              assert(c.operationType === "insert");
-              buffer.push(zodPCSEvent.parse(c.fullDocument));
-            }
-          } catch (e) {
-            // The change stream gets closed once the client gets closed
-            // at the end of the test
-            assert(e instanceof MongoServerError);
+    it("for low activity", { timeout: 120000 }, async () => {
+      const pcsColl = mddb.collection(derivePCSCollName(collectionName));
+      const pcscs = pcsColl.watch([]);
+      // Buffer the persisted change stream events as they happen
+      const buffer: PCSEvent[] = [];
+      void (async () => {
+        try {
+          for await (const c of pcscs) {
+            assert(c.operationType === "insert");
+            buffer.push(zodPCSEvent.parse(c.fullDocument));
           }
-        })();
-        // Wait for a noop
-        while (buffer.findIndex((x) => x.o === "n") === -1) {
-          await sleep(1000);
+        } catch (e) {
+          // The change stream gets closed once the client gets closed
+          // at the end of the test
+          assert(e instanceof MongoServerError);
         }
-        // Insert a document into the collection
-        await collection.insertOne({});
-        // Wait for two new noops
-        let noopCntBefore = buffer.filter((x) => x.o === "n").length;
-        while (buffer.filter((x) => x.o === "n").length < noopCntBefore + 2) {
-          await sleep(1000);
-        }
-        // Insert two documents into the collection
-        // Use a session to get the operation time
-        let opTime!: Timestamp;
-        await client.withSession(async (session) => {
-          await collection.insertMany([{}, {}], { session });
-          opTime = z.instanceof(Timestamp).parse(session.operationTime);
-        });
-        // Wait for the PCS to catch up
-        while (
-          buffer.length === 0 ||
-          buffer
-            .map((pcse) => pcse.ct)
-            .reduce((a, b) => (a.gt(b) ? a : b))
-            .lt(opTime)
-        ) {
-          await sleep(250);
-        }
-        // Wait for another nop
-        noopCntBefore = buffer.filter((x) => x.o === "n").length;
-        while (buffer.filter((x) => x.o === "n").length < noopCntBefore + 1) {
-          await sleep(1000);
-        }
+      })();
+      // Wait for a noop
+      while (buffer.findIndex((x) => x.o === "n") === -1) {
+        await sleep(1000);
+      }
+      // Insert a document into the collection
+      await collection.insertOne({});
+      // Wait for two new noops
+      const noopCntBefore = buffer.filter((x) => x.o === "n").length;
+      while (buffer.filter((x) => x.o === "n").length < noopCntBefore + 2) {
+        await sleep(1000);
+      }
+      // Insert two documents into the collection
+      // Use a session to get the operation time
+      let opTime!: Timestamp;
+      await client.withSession(async (session) => {
+        await collection.insertMany([{}, {}], { session });
+        opTime = z.instanceof(Timestamp).parse(session.operationTime);
+      });
+      // Wait for the PCS to catch up
+      while (
+        buffer.length === 0 ||
+        buffer
+          .map((pcse) => pcse.ct)
+          .reduce((a, b) => (a.gt(b) ? a : b))
+          .lte(opTime)
+      ) {
+        await sleep(250);
+      }
 
-        checkPCSInvariants(buffer);
-      },
-      { timeout: 120000 }
-    );
-    it(
-      "for high activity",
-      async () => {
-        const pcsColl = mddb.collection(derivePCSCollName(collectionName));
-        const pcscs = pcsColl.watch([]);
-        // Buffer the persisted change stream events as they happen
-        const buffer: PCSEvent[] = [];
-        void (async () => {
-          try {
-            for await (const c of pcscs) {
-              assert(c.operationType === "insert");
-              buffer.push(zodPCSEvent.parse(c.fullDocument));
-            }
-          } catch (e) {
-            // The change stream gets closed once the client gets closed
-            // at the end of the test
-            assert(e instanceof MongoServerError);
+      checkPCSInvariants(buffer);
+    });
+    it("for high activity", { timeout: 120000 }, async () => {
+      const pcsColl = mddb.collection(derivePCSCollName(collectionName));
+      const pcscs = pcsColl.watch([]);
+      // Buffer the persisted change stream events as they happen
+      const buffer: PCSEvent[] = [];
+      void (async () => {
+        try {
+          for await (const c of pcscs) {
+            assert(c.operationType === "insert");
+            buffer.push(zodPCSEvent.parse(c.fullDocument));
           }
-        })();
-        // Insert a large number of documents into the collection
-        // Use a session to get the operation time
-        let opTime!: Timestamp;
-        await client.withSession(async (session) => {
+        } catch (e) {
+          // The change stream gets closed once the client gets closed
+          // at the end of the test
+          assert(e instanceof MongoServerError);
+        }
+      })();
+      // Insert a large number of documents into the collection
+      // Use a session to get the operation time
+      let opTime!: Timestamp;
+      await client.withSession(async (session) => {
+        await collection.insertMany(
+          Array.from({ length: 50000 }).map((_) => {
+            return {};
+          }),
+          { session }
+        );
+        opTime = z.instanceof(Timestamp).parse(session.operationTime);
+      });
+      // Wait for the PCS to catch up
+      while (buffer.length === 0 || buffer[buffer.length - 1]!.ct.lte(opTime)) {
+        await sleep(250);
+      }
+
+      checkPCSInvariants(buffer);
+    });
+
+    it("for small transactions", { timeout: 120000 }, async () => {
+      const pcsColl = mddb.collection(derivePCSCollName(collectionName));
+      const pcscs = pcsColl.watch([]);
+      // Buffer the persisted change stream events as they happen
+      const buffer: PCSEvent[] = [];
+      void (async () => {
+        try {
+          for await (const c of pcscs) {
+            assert(c.operationType === "insert");
+            buffer.push(zodPCSEvent.parse(c.fullDocument));
+          }
+        } catch (e) {
+          // The change stream gets closed once the client gets closed
+          // at the end of the test
+          assert(e instanceof MongoServerError);
+        }
+      })();
+      // Insert a large number of documents into the collection transactionally
+      let opTime!: Timestamp;
+      await client.withSession(async (session) => {
+        // This txn gets comitted as a single oplog entry
+        await session.withTransaction(async (session) => {
+          await collection.insertOne({}, { session });
+          await collection.insertOne({}, { session });
+        });
+        opTime = z.instanceof(Timestamp).parse(session.operationTime);
+      });
+      // Wait for the PCS to catch up
+      while (buffer.length === 0 || buffer[buffer.length - 1]!.ct.lte(opTime)) {
+        await sleep(250);
+      }
+
+      checkPCSInvariants(buffer);
+    });
+
+    it("for large transactions", { timeout: 120000 }, async () => {
+      const pcsColl = mddb.collection(derivePCSCollName(collectionName));
+      const pcscs = pcsColl.watch([]);
+      // Buffer the persisted change stream events as they happen
+      const buffer: PCSEvent[] = [];
+      void (async () => {
+        try {
+          for await (const c of pcscs) {
+            assert(c.operationType === "insert");
+            buffer.push(zodPCSEvent.parse(c.fullDocument));
+          }
+        } catch (e) {
+          // The change stream gets closed once the client gets closed
+          // at the end of the test
+          assert(e instanceof MongoServerError);
+        }
+      })();
+      // Insert a large number of documents into the collection transactionally
+      let opTime!: Timestamp;
+      await client.withSession(async (session) => {
+        await session.withTransaction(async (session) => {
+          // This txn is so large it needs to be divided up
+          // into ~10 oplog entries.
           await collection.insertMany(
-            Array.from({ length: 50000 }).map((_) => {
+            Array.from({ length: 10000 }).map((_) => {
               return {};
             }),
             { session }
           );
-          opTime = z.instanceof(Timestamp).parse(session.operationTime);
         });
-        // Wait for the PCS to catch up
-        while (
-          buffer.length === 0 ||
-          buffer[buffer.length - 1]!.ct.lt(opTime)
-        ) {
-          await sleep(250);
-        }
-        // Wait for a new noop
-        const noopCntBefore = buffer.filter((x) => x.o === "n").length;
-        while (buffer.filter((x) => x.o === "n").length < noopCntBefore + 1) {
-          await sleep(1000);
-        }
+        opTime = z.instanceof(Timestamp).parse(session.operationTime);
+      });
+      // Wait for the PCS to catch up
+      while (buffer.length === 0 || buffer[buffer.length - 1]!.ct.lte(opTime)) {
+        await sleep(250);
+      }
 
-        checkPCSInvariants(buffer);
-      },
-      { timeout: 120000 }
-    );
-
-    it(
-      "for small transactions",
-      async () => {
-        const pcsColl = mddb.collection(derivePCSCollName(collectionName));
-        const pcscs = pcsColl.watch([]);
-        // Buffer the persisted change stream events as they happen
-        const buffer: PCSEvent[] = [];
-        void (async () => {
-          try {
-            for await (const c of pcscs) {
-              assert(c.operationType === "insert");
-              buffer.push(zodPCSEvent.parse(c.fullDocument));
-            }
-          } catch (e) {
-            // The change stream gets closed once the client gets closed
-            // at the end of the test
-            assert(e instanceof MongoServerError);
-          }
-        })();
-        // Insert a large number of documents into the collection transactionally
-        let opTime!: Timestamp;
-        await client.withSession(async (session) => {
-          // This txn gets comitted as a single oplog entry
-          await session.withTransaction(async (session) => {
-            await collection.insertOne({}, { session });
-            await collection.insertOne({}, { session });
-          });
-          opTime = z.instanceof(Timestamp).parse(session.operationTime);
-        });
-        // Wait for the PCS to catch up
-        while (
-          buffer.length === 0 ||
-          buffer[buffer.length - 1]!.ct.lte(opTime)
-        ) {
-          await sleep(250);
-        }
-
-        checkPCSInvariants(buffer);
-      },
-      { timeout: 120000 }
-    );
-
-    it(
-      "for large transactions",
-      async () => {
-        const pcsColl = mddb.collection(derivePCSCollName(collectionName));
-        const pcscs = pcsColl.watch([]);
-        // Buffer the persisted change stream events as they happen
-        const buffer: PCSEvent[] = [];
-        void (async () => {
-          try {
-            for await (const c of pcscs) {
-              assert(c.operationType === "insert");
-              buffer.push(zodPCSEvent.parse(c.fullDocument));
-            }
-          } catch (e) {
-            // The change stream gets closed once the client gets closed
-            // at the end of the test
-            assert(e instanceof MongoServerError);
-          }
-        })();
-        // Insert a large number of documents into the collection transactionally
-        let opTime!: Timestamp;
-        await client.withSession(async (session) => {
-          await session.withTransaction(async (session) => {
-            // This txn is so large it needs to be divided up
-            // into ~10 oplog entries.
-            await collection.insertMany(
-              Array.from({ length: 10000 }).map((_) => {
-                return {};
-              }),
-              { session }
-            );
-          });
-          opTime = z.instanceof(Timestamp).parse(session.operationTime);
-        });
-        // Wait for the PCS to catch up
-        while (
-          buffer.length === 0 ||
-          buffer[buffer.length - 1]!.ct.lte(opTime)
-        ) {
-          await sleep(250);
-        }
-
-        checkPCSInvariants(buffer);
-      },
-      { timeout: 120000 }
-    );
+      checkPCSInvariants(buffer);
+    });
   });
 });

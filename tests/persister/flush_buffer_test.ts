@@ -1,4 +1,4 @@
-import { it, describe } from "../test_utils/tests_polyglot";
+import { it, describe } from "node:test";
 import { FlushBuffer } from "../../src/persister/flush_buffer";
 import { strict as assert } from "assert";
 import { sleep } from "../test_utils/sleep";
