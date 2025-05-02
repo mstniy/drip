@@ -13,7 +13,7 @@ export function applyUpdateDescription(
   // Copy the given object by one level
   const res = { ...old };
   for (const [k, v_] of Object.entries(updateDescription)) {
-    const vParsed = z.record(z.unknown()).safeParse(v_);
+    const vParsed = z.record(z.string(), z.unknown()).safeParse(v_);
     if (!vParsed.success) {
       throw new InvalidUpdateDescription(`Expected object, got ${typeof v_}`);
     }
@@ -50,7 +50,7 @@ export function applyUpdateDescription(
         }
         const nestedFieldName = k.slice(1);
         const nestedFieldParsed = z
-          .record(z.unknown())
+          .record(z.string(), z.unknown())
           .safeParse(res[nestedFieldName]);
         if (!nestedFieldParsed.success) {
           throw new InvalidUpdateDescription(

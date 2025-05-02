@@ -25,7 +25,9 @@ export function scopeQueryClause(
           if (!Array.isArray(v)) {
             throw new InvalidExpression(`${k} argument must be an array`);
           }
-          const vParsed = z.array(z.record(z.unknown())).safeParse(v);
+          const vParsed = z
+            .array(z.record(z.string(), z.unknown()))
+            .safeParse(v);
           if (!vParsed.success) {
             throw new InvalidExpression(
               `${k} argument's entries must be objects`
