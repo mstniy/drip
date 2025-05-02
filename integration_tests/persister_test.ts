@@ -536,5 +536,94 @@ describe("persister", () => {
       },
       { timeout: 120000 }
     );
+
+    it(
+      "for small transactions",
+      async () => {
+        const pcsColl = mddb.collection(derivePCSCollName(collectionName));
+        const pcscs = pcsColl.watch([]);
+        // Buffer the persisted change stream events as they happen
+        const buffer: PCSEvent[] = [];
+        void (async () => {
+          try {
+            for await (const c of pcscs) {
+              assert(c.operationType === "insert");
+              buffer.push(zodPCSEvent.parse(c.fullDocument));
+            }
+          } catch (e) {
+            // The change stream gets closed once the client gets closed
+            // at the end of the test
+            assert(e instanceof MongoServerError);
+          }
+        })();
+        // Insert a large number of documents into the collection transactionally
+        let opTime!: Timestamp;
+        await client.withSession(async (session) => {
+          // This txn gets comitted as a single oplog entry
+          await session.withTransaction(async (session) => {
+            await collection.insertOne({}, { session });
+            await collection.insertOne({}, { session });
+          });
+          opTime = z.instanceof(Timestamp).parse(session.operationTime);
+        });
+        // Wait for the PCS to catch up
+        while (
+          buffer.length === 0 ||
+          buffer[buffer.length - 1]!.ct.lte(opTime)
+        ) {
+          await sleep(250);
+        }
+
+        checkPCSInvariants(buffer);
+      },
+      { timeout: 120000 }
+    );
+
+    it(
+      "for large transactions",
+      async () => {
+        const pcsColl = mddb.collection(derivePCSCollName(collectionName));
+        const pcscs = pcsColl.watch([]);
+        // Buffer the persisted change stream events as they happen
+        const buffer: PCSEvent[] = [];
+        void (async () => {
+          try {
+            for await (const c of pcscs) {
+              assert(c.operationType === "insert");
+              buffer.push(zodPCSEvent.parse(c.fullDocument));
+            }
+          } catch (e) {
+            // The change stream gets closed once the client gets closed
+            // at the end of the test
+            assert(e instanceof MongoServerError);
+          }
+        })();
+        // Insert a large number of documents into the collection transactionally
+        let opTime!: Timestamp;
+        await client.withSession(async (session) => {
+          await session.withTransaction(async (session) => {
+            // This txn is so large it needs to be divided up
+            // into ~10 oplog entries.
+            await collection.insertMany(
+              Array.from({ length: 10000 }).map((_) => {
+                return {};
+              }),
+              { session }
+            );
+          });
+          opTime = z.instanceof(Timestamp).parse(session.operationTime);
+        });
+        // Wait for the PCS to catch up
+        while (
+          buffer.length === 0 ||
+          buffer[buffer.length - 1]!.ct.lte(opTime)
+        ) {
+          await sleep(250);
+        }
+
+        checkPCSInvariants(buffer);
+      },
+      { timeout: 120000 }
+    );
   });
 });
