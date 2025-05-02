@@ -7,7 +7,6 @@ import {
 } from "../cea/pcs_event";
 import z from "zod";
 import { updateDescriptionToU as updateDescriptionToU } from "./update_description_to_u";
-import { strict as assert } from "assert";
 
 const zodInsertSchema = z.object({
   clusterTime: z.instanceof(Timestamp),
