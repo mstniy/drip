@@ -58,7 +58,6 @@ async function* cc_common(
               { ct: { $lt: session.clusterTime.clusterTime } },
               { readConcern: ReadConcernLevel.majority, session }
             )
-            .comment("drip cc")
             .project({ _id: 0 })
             .limit(1)
             .toArray()
@@ -87,7 +86,12 @@ async function* cc_common(
       // useful in our case, as it is limited to
       // a likely-too-small time window.
       // See https://www.mongodb.com/docs/manual/reference/read-concern-snapshot/#std-label-read-concern-snapshot
-      { readConcern: ReadConcernLevel.majority, session, raw }
+      {
+        readConcern: ReadConcernLevel.majority,
+        session,
+        raw,
+        comment: "drip cc",
+      }
     );
 
     try {
