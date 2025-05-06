@@ -58,6 +58,7 @@ async function* cc_common(
               { ct: { $lt: session.clusterTime.clusterTime } },
               { readConcern: ReadConcernLevel.majority, session }
             )
+            .comment("drip cc")
             .project({ _id: 0 })
             .limit(1)
             .toArray()
