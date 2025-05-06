@@ -56,7 +56,7 @@ async function* cc_common(
             .collection(derivePCSCollName(collectionName))
             .find(
               { ct: { $lt: session.clusterTime.clusterTime } },
-              { readConcern: ReadConcernLevel.majority, session }
+              { readConcern: ReadConcernLevel.majority }
             )
             .project({ _id: 0 })
             .limit(1)
