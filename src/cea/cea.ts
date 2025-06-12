@@ -168,6 +168,7 @@ export async function* dripCEAResume(
               { o: "n", ct: { $lte: cursorEvent.ct } },
               { readConcern: ReadConcernLevel.majority }
             )
+            .sort({ ct: -1 })
             .project({ _id: 0, w: 1 })
             .limit(1)
             .toArray()
