@@ -1,10 +1,15 @@
-## 0.2.0
+## 0.2.0 - 2025-06-13
 
 - Support for change stream replace events
 - Removed the cluster time from the CEA cursor
 - CSEvent now has a separate field for cluster time
 - dripCEAResume: Tolerate resuming the "head" of the PCS
 - dripCEAResume: Fix rejectIfOlderThan if the cursor is not on a nop
+- Stop combining adjacent $match stages when inverting pipelines
+- Persister: Avoid persisting all the changes in the cluster time, which used to lead to feedback loops.
+- Support for Bun
+- CC: Attach a comment to the MongoDB query
+- Fix bug in rejectIfOlderThan logic
 
 ## 0.1.0 - 2025-04-18
 
